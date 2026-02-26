@@ -8,9 +8,8 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [addingId, setAddingId] = useState(null); // Pour savoir quel jeu est en train d'être ajouté
+  const [addingId, setAddingId] = useState(null);
 
-  // N'oublie pas de mettre ton URL
   const API_SEARCH_URL = 'https://www.g-played.com/api/index.php?action=api_search_igdb';
   const API_SAVE_URL = 'https://www.g-played.com/api/index.php?action=api_save_game';
 
@@ -25,8 +24,15 @@ export default function SearchScreen() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
-      if (data.success) {
+ 
+      if (data.results) {
+        setResults(data.results);
+      } else if (data.success) { 
         setResults(data.data);
+      } else if (Array.isArray(data) && data.length === 0) {
+        setResults([]);
+      } else {
+        console.log("Format de réponse inattendu :", data);
       }
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de chercher le jeu.');
@@ -49,6 +55,7 @@ export default function SearchScreen() {
           rawg_id: game.id,
           title: game.name,
           platform: 'Multiplateforme',
+
           status: defaultStatus || 'not_started', 
           format: defaultFormat || 'physical', 
           background_image: game.background_image
