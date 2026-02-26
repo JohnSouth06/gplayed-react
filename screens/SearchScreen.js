@@ -1,8 +1,10 @@
+import { useLocalSearchParams } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function SearchScreen() {
+  const { defaultStatus, defaultFormat } = useLocalSearchParams();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -46,8 +48,9 @@ export default function SearchScreen() {
         body: JSON.stringify({
           rawg_id: game.id,
           title: game.name,
-          platform: 'Multiplateforme', // Valeur par défaut, l'utilisateur pourra modifier plus tard
-          status: 'wishlist', // On l'ajoute par défaut à la wishlist ou "not_started"
+          platform: 'Multiplateforme',
+          status: defaultStatus || 'not_started', 
+          format: defaultFormat || 'physical', 
           background_image: game.background_image
         })
       });

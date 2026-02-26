@@ -126,7 +126,16 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       />
 
-      <TouchableOpacity style={styles.fab} onPress={() => router.push('/search')}>
+      <TouchableOpacity 
+        style={styles.fab} 
+        onPress={() => router.push({
+          pathname: '/search',
+          params: { 
+            defaultStatus: 'not_started',
+            defaultFormat: activeFormat
+          }
+        })}
+      >
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
     </View>

@@ -74,7 +74,16 @@ export default function WishlistScreen() {
       {games.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>Votre liste de souhaits est vide.</Text>
-          <TouchableOpacity style={styles.searchButton} onPress={() => router.push('/search')}>
+          <TouchableOpacity 
+            style={styles.searchButton} 
+            onPress={() => router.push({
+              pathname: '/search',
+              params: { 
+                defaultStatus: 'wishlist', 
+                defaultFormat: 'physical' 
+              }
+            })}
+          >
             <Text style={styles.searchButtonText}>Chercher un jeu</Text>
           </TouchableOpacity>
         </View>
@@ -87,6 +96,15 @@ export default function WishlistScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+      <TouchableOpacity 
+        style={styles.fab} 
+        onPress={() => router.push({
+          pathname: '/search',
+          params: { defaultStatus: 'wishlist', defaultFormat: 'physical' }
+        })}
+      >
+        <Text style={styles.fabText}>+</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -110,5 +128,10 @@ const styles = StyleSheet.create({
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
   emptyText: { color: '#6c7d76', fontSize: 16, textAlign: 'center', marginBottom: 20 },
   searchButton: { backgroundColor: 'rgba(76, 229, 174, 0.1)', borderColor: '#4CE5AE', borderWidth: 1, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 50 },
-  searchButtonText: { color: '#4CE5AE', fontWeight: 'bold', fontSize: 16 }
+  searchButtonText: { color: '#4CE5AE', fontWeight: 'bold', fontSize: 16  },
+
+  fab: { position: 'absolute', bottom: 25, right: 25, width: 60, height: 60, borderRadius: 30, backgroundColor: '#4CE5AE', justifyContent: 'center', alignItems: 'center', elevation: 5 },
+  fabText: { color: '#111', fontSize: 32, fontWeight: 'bold', lineHeight: 34 
+
+  }
 });
