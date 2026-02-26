@@ -1,27 +1,50 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { Text } from 'react-native';
+import HeaderAvatar from '../../components/HeaderAvatar'; // <-- NOUVEL IMPORT
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: false, // On cache le header du haut par défaut
+        // 1. ON ACTIVE LA BARRE NATIVE
+        headerShown: true, 
+        
+        // 2. LE STYLE DE LA BARRE
+        headerStyle: {
+          backgroundColor: '#1b1b1b',
+          borderBottomWidth: 1,
+          borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+          elevation: 0, // Enlève l'ombre sur Android
+          shadowOpacity: 0, // Enlève l'ombre sur iOS
+        },
+        
+        // 3. LE LOGO À GAUCHE
+        headerTitleAlign: 'left',
+        headerTitle: () => (
+          <Text style={{ fontSize: 26, fontWeight: '900', color: '#fff', fontStyle: 'italic' }}>
+            G<Text style={{ color: '#4CE5AE' }}>-</Text>Played
+          </Text>
+        ),
+        
+        // 4. L'AVATAR À DROITE
+        headerRight: () => <HeaderAvatar />,
+
+        // ... Laisse le reste de tes options tabBarStyle intactes ...
         tabBarStyle: {
-          backgroundColor: '#1b1b1b', // Fond sombre
+          backgroundColor: '#1b1b1b',
           borderTopWidth: 1,
           borderTopColor: 'rgba(255, 255, 255, 0.05)',
           height: 60,
           paddingBottom: 8,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: '#4CE5AE', // Vert G-Played
-        tabBarInactiveTintColor: '#6c7d76', // Gris secondaire
-        tabBarLabelStyle: {
-          fontSize: 10, // Un peu plus petit pour faire rentrer les 6 menus proprement
-          fontWeight: '600',
-        }
+        tabBarActiveTintColor: '#4CE5AE',
+        tabBarInactiveTintColor: '#6c7d76',
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '600' }
       }}
     >
+      
       {/* ==========================================
           1. ÉCRANS CACHÉS DU MENU BAS
           (On utilise href: null pour les masquer)

@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { Tabs, useFocusEffect, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -132,6 +132,9 @@ export default function WishlistScreen() {
 
   return (
     <View style={styles.container}>
+      {/* MAGIE : Cache le header natif si on est en mode sélection ! */}
+      <Tabs.Screen options={{ headerShown: !isSelectionMode }} />
+
       {isSelectionMode ? (
         <View style={styles.selectionHeader}>
           <TouchableOpacity onPress={() => { setIsSelectionMode(false); setSelectedGames([]); }}>
@@ -140,9 +143,7 @@ export default function WishlistScreen() {
           <Text style={styles.selectionText}>{selectedGames.length} sélectionné(s)</Text>
         </View>
       ) : (
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Mes Souhaits</Text>
-        </View>
+        <Text style={styles.pageTitle}>Mes Souhaits</Text>
       )}
 
       {games.length === 0 ? (
@@ -165,8 +166,6 @@ export default function WishlistScreen() {
         />
       )}
 
-      {/* Le bouton flottant + est caché si la liste est vide (car il y a déjà un gros bouton au centre),
-          sauf en mode sélection où on affiche la corbeille */}
       {isSelectionMode ? (
         <TouchableOpacity style={[styles.fab, styles.fabDelete]} onPress={deleteSelectedGames}>
           <MaterialIcons name="delete" size={28} color="#fff" />
@@ -186,8 +185,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1b1b1b' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1b1b1b' },
   
-  header: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)', marginBottom: 20 },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff' },
+  // Nouveau style pour le titre de la page
+  pageTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff', marginHorizontal: 20, marginTop: 20, marginBottom: 20 },
 
   selectionHeader: { paddingTop: 60, paddingBottom: 20, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', backgroundColor: '#dc3545', marginBottom: 20 },
   selectionText: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginLeft: 20 },
