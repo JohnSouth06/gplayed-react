@@ -1,9 +1,35 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { Tabs } from 'expo-router';
+import { Tabs, useFocusEffect } from 'expo-router';
+import * as SecureStore from 'expo-secure-store'; // Ajout de SecureStore
+import React, { useCallback, useState } from 'react'; // Ajout de useState et useCallback
 import HeaderAvatar from '../../components/HeaderAvatar';
 
 export default function TabLayout() {
+  const [hasLoanedGames, setHasLoanedGames] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      const checkLoanedStatus = async () => {
+        try {
+          const token = await SecureStore.getItemAsync('userToken');
+          if (!token) return;
+          const response = await fetch('https://www.g-played.com/api/index.php?action=api_get_games', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await response.json();
+          if (data.success) {
+            // S'il y a au moins 1 jeu prêté, on passe la variable à true
+            setHasLoanedGames(data.data.some(game => game.status === 'loaned'));
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      };
+      checkLoanedStatus();
+    }, [])
+  );
+
   return (
     <Tabs
       screenOptions={{
@@ -67,6 +93,7 @@ export default function TabLayout() {
         name="loaned"
         options={{
           title: 'Prêts',
+          href: hasLoanedGames ? '/loaned' : null, 
           tabBarIcon: ({ color }) => <MaterialIcons name="handshake" size={24} color={color} />,
         }}
       />
@@ -95,13 +122,6 @@ export default function TabLayout() {
         }}
       />
 
-      <Tabs.Screen
-        name="community"
-        options={{
-          title: 'Réseau',
-          tabBarIcon: ({ color }) => <MaterialIcons name="groups" size={24} color={color} />,
-        }}
-      />
     </Tabs>
   );
 }
