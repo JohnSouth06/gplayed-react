@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useState } from 'react';
@@ -62,7 +63,11 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Gplayed</Text>
+      <Image 
+        source={require('../assets/images/logo.svg')} 
+        style={styles.logo} 
+        contentFit="contain" 
+      />
       <Text style={styles.subtitle}>Connectez-vous à votre compte</Text>
 
       <View style={styles.inputContainer}>
@@ -102,14 +107,20 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212', // Fond sombre
+    backgroundColor: '#121212',
     justifyContent: 'center',
     padding: 24,
+  },
+  logo: {
+    width: 280,
+    height: 50,
+    alignSelf: 'center',
+    marginBottom: 15,
   },
   title: {
     fontSize: 42,
     fontWeight: 'bold',
-    color: '#4CE5AE', // Vert Gplayed
+    color: '#4CE5AE',
     textAlign: 'center',
     marginBottom: 8,
   },
