@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
   coverSelected: { opacity: 0.5 },
   checkOverlay: { position: 'absolute', right: 20, top: '40%' },
   returnButton: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.05)' },
-  cover: { width: 100, height: 140 },
+  cover: { display: 'flex', alignItems: 'center', justifyContent: 'center', justifyItems: 'center', flexDirection: 'row-reverse', width: '100', height: '100vh' },
   placeholderCover: { backgroundColor: '#151515' },
   cardInfo: { flex: 1, padding: 12, justifyContent: 'center' },
   gameTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
