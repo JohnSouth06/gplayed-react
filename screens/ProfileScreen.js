@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect, useState } from 'react';
 import { Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import i18n from '../config/i18n';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -21,19 +22,16 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     Alert.alert(
-      "Déconnexion",
-      "Voulez-vous vraiment vous déconnecter ?",
+      i18n.t('profile.logout_title'),
+      i18n.t('profile.logout_question'),
       [
-        { text: "Annuler", style: "cancel" },
+        { text: i18n.t('common.cancel'), style: "cancel" },
         { 
-          text: "Se déconnecter", 
-          style: "destructive", // Met le texte en rouge sur iOS
+          text: i18n.t('profile.logout_button'), 
+          style: "destructive",
           onPress: async () => {
-            // On supprime les données de session du téléphone
             await SecureStore.deleteItemAsync('userToken');
             await SecureStore.deleteItemAsync('userData');
-            
-            // On renvoie l'utilisateur vers la page de Login (index)
             router.replace('/');
           } 
         }
@@ -43,17 +41,13 @@ export default function ProfileScreen() {
 
   if (!user) return <View style={styles.container} />;
 
-  // Formate l'URL de l'avatar correctement
   const avatarUri = user?.avatar 
     ? (user.avatar.startsWith('http') ? user.avatar : `https://www.g-played.com/${user.avatar}`) 
     : 'https://www.g-played.com/uploads/avatars/default.png';
 
   return (
     <View style={styles.container}>
-      {/* On masque le header natif (qui affichait "tabs") */}
-
       <View style={styles.header}>
-        {/* Nouveau bouton de retour personnalisé */}
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <MaterialIcons name="arrow-back-ios" size={24} color="#fff" />
         </TouchableOpacity>
@@ -65,7 +59,7 @@ export default function ProfileScreen() {
 
       <View style={styles.menuContainer}>
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Se déconnecter</Text>
+          <Text style={styles.logoutText}>{i18n.t('profile.logout_button')}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -73,24 +67,13 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#1b1b1b' },
   header: { alignItems: 'center', paddingTop: 60, paddingBottom: 40, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)', position: 'relative' },
   backButton: { position: 'absolute', top: 60, left: 20, zIndex: 10, padding: 10 },
-
-  container: { flex: 1, backgroundColor: '#1b1b1b' },
-  header: { alignItems: 'center', paddingTop: 60, paddingBottom: 40, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
   avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: '#4CE5AE', marginBottom: 16 },
   username: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
   email: { fontSize: 14, color: '#6c7d76' },
-  
   menuContainer: { padding: 20, marginTop: 20 },
-  logoutButton: { 
-    backgroundColor: 'rgba(220, 53, 69, 0.1)', // Fond rouge transparent
-    borderWidth: 1, 
-    borderColor: '#dc3545', // Rouge Bootstrap
-    borderRadius: 12, 
-    padding: 16, 
-    alignItems: 'center',
-    marginTop: 20
-  },
+  logoutButton: { backgroundColor: 'rgba(220, 53, 69, 0.1)', borderWidth: 1, borderColor: '#dc3545', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 20 },
   logoutText: { color: '#dc3545', fontSize: 16, fontWeight: 'bold' }
 });

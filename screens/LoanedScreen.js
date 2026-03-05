@@ -1,27 +1,25 @@
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { Image as ExpoImage } from 'expo-image';
 import { Tabs, useFocusEffect, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
 import i18n from '../config/i18n';
 import { getRegionalPrice } from '../config/currency';
 
-export default function WishlistScreen() {
+export default function LoanedScreen() {
   const router = useRouter();
   const [games, setGames] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Mode sélection
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedGames, setSelectedGames] = useState([]);
 
-  // NOUVEAU : Recherche, filtres et tri
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPlatform, setFilterPlatform] = useState('all');
   const [sortBy, setSortBy] = useState('recent');
   const [modalVisible, setModalVisible] = useState(false);
-  const [modalType, setModalType] = useState(null); // 'platform' ou 'sort'
+  const [modalType, setModalType] = useState(null);
 
   const API_URL = 'https://www.g-played.com/api/index.php?action=api_get_games';
   const API_DELETE_URL = 'https://www.g-played.com/api/index.php?action=api_delete_game';
@@ -29,26 +27,21 @@ export default function WishlistScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchWishlist();
+      fetchLoanedGames();
       setIsSelectionMode(false);
       setSelectedGames([]);
     }, [])
   );
 
-  const fetchWishlist = async () => {
+  const fetchLoanedGames = async () => {
     try {
       const token = await SecureStore.getItemAsync('userToken');
       if (!token) return;
-
-      const response = await fetch(API_URL, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-
+      const response = await fetch(API_URL, { headers: { 'Authorization': `Bearer ${token}` } });
       const data = await response.json();
       if (data.success) {
-        const wishlistGames = data.data.filter(game => game.status === 'wishlist');
-        setGames(wishlistGames);
+        const loanedGames = data.data.filter(game => game.status === 'loaned');
+        setGames(loanedGames);
       }
     } catch (error) {
       console.error(error);
@@ -57,12 +50,8 @@ export default function WishlistScreen() {
     }
   };
 
-  // --- LOGIQUE DE SÉLECTION ---
   const handleLongPress = (id) => {
-    if (!isSelectionMode) {
-      setIsSelectionMode(true);
-      setSelectedGames([id]);
-    }
+    if (!isSelectionMode) { setIsSelectionMode(true); setSelectedGames([id]); }
   };
 
   const handlePress = (item) => {
@@ -81,8 +70,8 @@ export default function WishlistScreen() {
 
   const deleteSelectedGames = () => {
     Alert.alert(
-      i18n.t('home.delete_confirm_title'),
-      i18n.t('wishlist.delete_confirm_text', { count: selectedGames.length }),
+      i18n.t('common.delete'),
+      i18n.t('loaned.delete_confirm_text', { count: selectedGames.length }),
       [
         { text: i18n.t('common.cancel'), style: "cancel" },
         {
@@ -92,16 +81,13 @@ export default function WishlistScreen() {
             try {
               const token = await SecureStore.getItemAsync('userToken');
               await Promise.all(selectedGames.map(id =>
-                fetch(`${API_DELETE_URL}&id=${id}`, {
-                  method: 'DELETE',
-                  headers: { 'Authorization': `Bearer ${token}` }
-                })
+                fetch(`${API_DELETE_URL}&id=${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } })
               ));
               setIsSelectionMode(false);
               setSelectedGames([]);
-              fetchWishlist();
+              fetchLoanedGames();
             } catch (error) {
-              Alert.alert(i18n.t('common.error'), i18n.t('common.error_adding_games'));
+              Alert.alert(i18n.t('common.error'), i18n.t('common.error'));
               setIsLoading(false);
             }
           }
@@ -110,96 +96,74 @@ export default function WishlistScreen() {
     );
   };
 
-  const promptAcquire = (game) => {
+  const promptReturn = (game) => {
     Alert.alert(
-      i18n.t('wishlist.acquire_title'),
-      i18n.t('wishlist.acquire_text', { title: game.title }),
+      i18n.t('loaned.return_title'),
+      i18n.t('loaned.return_question', { game: game.title, name: game.loaned_to || i18n.t('common.unknown') }),
       [
         { text: i18n.t('common.cancel'), style: "cancel" },
-        { text: i18n.t('wishlist.physical'), onPress: () => acquireGame(game.id, 'physical') },
-        { text: i18n.t('wishlist.digital'), onPress: () => acquireGame(game.id, 'digital') }
+        { text: i18n.t('loaned.return_confirm'), onPress: () => returnGame(game.id) }
       ]
     );
   };
 
-  const acquireGame = async (gameId, format) => {
+  const returnGame = async (gameId) => {
     setIsLoading(true);
     try {
       const token = await SecureStore.getItemAsync('userToken');
       const response = await fetch(API_UPDATE_URL, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: gameId, status: 'not_started', format: format })
+        body: JSON.stringify({ id: gameId, status: 'completed' })
       });
       const data = await response.json();
       if (data.success) {
-        Alert.alert(i18n.t('common.success'), i18n.t('wishlist.acquire_success', { name: loanedToName.trim() }));
-        fetchWishlist(); 
+        Alert.alert(i18n.t('common.success'), i18n.t('loaned.return_success'));
+        fetchLoanedGames();
       } else {
         Alert.alert(i18n.t('common.error'), data.message);
         setIsLoading(false);
       }
     } catch (error) {
-      Alert.alert(i18n.t('common.error'), i18n.t('wishlist.acquire_error'));
+      Alert.alert(i18n.t('common.error'), i18n.t('loaned.return_error'));
       setIsLoading(false);
     }
   };
 
-  // --- NOUVEAU : LOGIQUE DE FILTRES ET DE RECHERCHE ---
   const getStandardPlatform = (platformStr) => {
-    if (!platformStr) return 'Autre';
-    if (platformStr.includes(',') || platformStr.includes('/') || platformStr.toLowerCase() === 'multiplateforme') {
-      return 'Multiplateforme';
-    }
+    if (!platformStr) return i18n.t('common.other');
+    if (platformStr.includes(',') || platformStr.includes('/') || platformStr.toLowerCase() === 'multiplateforme') return i18n.t('common.multiplatform');
     return platformStr.trim();
   };
 
   const applyFiltersAndSort = () => {
     let result = [...games];
+    if (searchQuery.trim() !== '') result = result.filter(g => g.title.toLowerCase().includes(searchQuery.toLowerCase()));
+    if (filterPlatform !== 'all') result = result.filter(g => getStandardPlatform(g.platform) === filterPlatform);
 
-    // Recherche texte
-    if (searchQuery.trim() !== '') {
-      result = result.filter(g => g.title.toLowerCase().includes(searchQuery.toLowerCase()));
-    }
-
-    // Filtre Plateforme
-    if (filterPlatform !== 'all') {
-      result = result.filter(g => getStandardPlatform(g.platform) === filterPlatform);
-    }
-
-    // Tri
     result.sort((a, b) => {
       if (sortBy === 'title') return a.title.localeCompare(b.title);
       if (sortBy === 'platform') return getStandardPlatform(a.platform).localeCompare(getStandardPlatform(b.platform));
       if (sortBy === 'price') return (b.estimated_price || 0) - (a.estimated_price || 0);
-      return b.id - a.id; 
+      return b.id - a.id;
     });
-
     return result;
   };
 
   const displayedGames = applyFiltersAndSort();
-  
   const platformSet = new Set(games.map(g => getStandardPlatform(g.platform)));
   const uniquePlatforms = ['all', ...Array.from(platformSet).sort()];
 
-  const openModal = (type) => {
-    setModalType(type);
-    setModalVisible(true);
-  };
+  const openModal = (type) => { setModalType(type); setModalVisible(true); };
 
   const getModalOptions = () => {
-    if (modalType === 'platform') {
-      return uniquePlatforms.map(p => ({ id: p, label: p === 'all' ? i18n.t('common.all') : p }));
-    }
-    if (modalType === 'sort') {
-      return [
-        { id: 'recent', label: i18n.t('sort.recent') },
-        { id: 'title', label: i18n.t('sort.title') },
-        { id: 'platform', label: i18n.t('sort.platform') },
-        { id: 'price', label: i18n.t('sort.price') }
-      ];
-    }
+    if (modalType === 'platform') return uniquePlatforms.map(p => ({ id: p, label: p === 'all' ? i18n.t('common.all_platforms') : p }));
+    if (modalType === 'sort') return [
+      { id: 'recent', label: i18n.t('sort.recent') },
+      { id: 'title', label: i18n.t('sort.title') },
+      { id: 'platform', label: i18n.t('sort.platform') },
+      { id: 'price', label: i18n.t('sort.price') }
+    ];
     return [];
   };
 
@@ -216,9 +180,11 @@ export default function WishlistScreen() {
 
   const renderGameCard = ({ item }) => {
     const isSelected = selectedGames.includes(item.id);
+    const formattedDate = item.loaned_date ? new Date(item.loaned_date).toLocaleDateString('fr-FR') : i18n.t('common.unknown');
+
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.card, isSelected && styles.cardSelected]}
         activeOpacity={0.7}
         onLongPress={() => handleLongPress(item.id)}
@@ -238,13 +204,31 @@ export default function WishlistScreen() {
               <Text style={styles.badgeTextPlatform}>{item.platform}</Text>
             </View>
             {getRegionalPrice(item) ? (
-            <View style={[styles.badge, styles.badgePrice]}>
-              <MaterialIcons name="sell" size={12} color="#fff" />
-              <Text style={styles.badgeTextLight}>{getRegionalPrice(item)}</Text>
-            </View>
-          ) : null}
+              <View style={[styles.badge, styles.badgePrice]}>
+                <MaterialIcons name="sell" size={12} color="#fff" />
+                <Text style={styles.badgeTextLight}>{getRegionalPrice(item)}</Text>
+              </View>
+            ) : null}
+            {item.metacritic_score && item.metacritic_score > 0 ? (
+              <View style={[styles.badge, styles.badgeMeta]}>
+                <ExpoImage
+                  source={require('../assets/images/metacritic.svg')}
+                  style={{ width: 14, height: 14 }}
+                  contentFit="contain" tintColor="#fff"
+                />
+                <Text style={styles.badgeTextLight}>{item.metacritic_score}</Text>
+              </View>
+            ) : null}
           </View>
 
+          <View style={styles.loanInfoContainer}>
+            <Text style={styles.loanInfoText} numberOfLines={1}>
+              <MaterialIcons name="person" size={14} color="#f0ad4e" /> {i18n.t('loaned.loaned_to')} <Text style={styles.loanInfoBold}>{item.loaned_to || i18n.t('common.unknown')}</Text>
+            </Text>
+            <Text style={styles.loanInfoText}>
+              <MaterialIcons name="event" size={14} color="#f0ad4e" /> {i18n.t('loaned.loaned_date')} <Text style={styles.loanInfoBold}>{formattedDate}</Text>
+            </Text>
+          </View>
         </View>
 
         {isSelected ? (
@@ -252,8 +236,8 @@ export default function WishlistScreen() {
             <MaterialIcons name="check-circle" size={28} color="#dc3545" />
           </View>
         ) : (
-          <TouchableOpacity style={styles.acquireButton} onPress={() => promptAcquire(item)}>
-            <MaterialIcons name="library-add" size={26} color="#4CE5AE" />
+          <TouchableOpacity style={styles.returnButton} onPress={() => promptReturn(item)}>
+            <MaterialCommunityIcons name="keyboard-return" size={26} color="#f0ad4e" />
           </TouchableOpacity>
         )}
       </TouchableOpacity>
@@ -271,21 +255,19 @@ export default function WishlistScreen() {
           <TouchableOpacity onPress={() => { setIsSelectionMode(false); setSelectedGames([]); }}>
             <MaterialIcons name="close" size={28} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.selectionText}>{selectedGames.length} sélectionné(s)</Text>
+          <Text style={styles.selectionText}>{selectedGames.length} {i18n.t('common.selected')}</Text>
         </View>
       ) : (
-        <Text style={styles.pageTitle}>{i18n.t('wishlist.title')}</Text>
+        <Text style={styles.pageTitle}>{i18n.t('loaned.title')}</Text>
       )}
 
-      {/* RECHERCHE ET FILTRES */}
-      {!isSelectionMode && (
+      {!isSelectionMode && games.length > 0 && (
         <View>
-          {/* Barre de recherche */}
           <View style={styles.localSearchContainer}>
             <MaterialIcons name="search" size={20} color="#6c7d76" style={styles.localSearchIcon} />
             <TextInput
               style={styles.localSearchInput}
-              placeholder={i18n.t('wishlist.search_placeholder')}
+              placeholder={i18n.t('loaned.search_placeholder')}
               placeholderTextColor="#6c7d76"
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -297,36 +279,27 @@ export default function WishlistScreen() {
             )}
           </View>
 
-          {/* Boutons de Filtres et Tri */}
-          {games.length > 0 && (
-            <View style={styles.filtersRow}>
-              <TouchableOpacity style={styles.filterButton} onPress={() => openModal('platform')}>
-                <Text style={styles.filterButtonText} numberOfLines={1}>
-                  {filterPlatform === 'all' ? i18n.t('common.platforms') : filterPlatform}
-                </Text>
-                <MaterialIcons name="arrow-drop-down" size={20} color="#6c7d76" />
-              </TouchableOpacity>
+          <View style={styles.filtersRow}>
+            <TouchableOpacity style={styles.filterButton} onPress={() => openModal('platform')}>
+              <Text style={styles.filterButtonText} numberOfLines={1}>
+                {filterPlatform === 'all' ? i18n.t('common.platforms') : filterPlatform}
+              </Text>
+              <MaterialIcons name="arrow-drop-down" size={20} color="#6c7d76" />
+            </TouchableOpacity>
 
-              <TouchableOpacity style={styles.filterButton} onPress={() => openModal('sort')}>
-                <Text style={styles.filterButtonText} numberOfLines={1}>
-                  {sortBy === 'recent' ? i18n.t('common.recent') : sortBy === 'title' ? i18n.t('common.a_z') : sortBy === 'platform' ? i18n.t('common.platform') : i18n.t('common.price')}
-                </Text>
-                <MaterialIcons name="arrow-drop-down" size={20} color="#6c7d76" />
-              </TouchableOpacity>
-            </View>
-          )}
+            <TouchableOpacity style={styles.filterButton} onPress={() => openModal('sort')}>
+              <Text style={styles.filterButtonText} numberOfLines={1}>
+                {sortBy === 'recent' ? i18n.t('common.recent') : sortBy === 'title' ? i18n.t('common.a_z') : sortBy === 'platform' ? i18n.t('common.platform') : i18n.t('common.price')}
+              </Text>
+              <MaterialIcons name="arrow-drop-down" size={20} color="#6c7d76" />
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
       {games.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>{i18n.t('wishlist.empty_text')}</Text>
-          <TouchableOpacity 
-            style={styles.searchButton} 
-            onPress={() => router.push({ pathname: '/search', params: { defaultStatus: 'wishlist', defaultFormat: 'physical' }})}
-          >
-            <Text style={styles.searchButtonText}>{i18n.t('wishlist.search_button')}</Text>
-          </TouchableOpacity>
+          <Text style={styles.emptyText}>{i18n.t('loaned.empty_text')}</Text>
         </View>
       ) : (
         <FlatList
@@ -335,48 +308,36 @@ export default function WishlistScreen() {
           renderItem={renderGameCard}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<Text style={styles.emptyText}>{i18n.t('home.empty_text')}</Text>}
+          ListEmptyComponent={<Text style={styles.emptyText}>{i18n.t('loaned.empty_search')}</Text>}
         />
       )}
 
-      {isSelectionMode ? (
+      {isSelectionMode && (
         <TouchableOpacity style={[styles.fab, styles.fabDelete]} onPress={deleteSelectedGames}>
           <MaterialIcons name="delete" size={28} color="#fff" />
         </TouchableOpacity>
-      ) : (
-        games.length > 0 && (
-          <TouchableOpacity style={styles.fab} onPress={() => router.push({ pathname: '/search', params: { defaultStatus: 'wishlist', defaultFormat: 'physical' }})}>
-            <Text style={styles.fabText}>+</Text>
-          </TouchableOpacity>
-        )
       )}
 
-      {/* MENU MODAL (BottomSheet) */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalVisible(false)}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {modalType === 'platform' ? i18n.t('common.choose_platform') : modalType === 'status' ? i18n.t('home.choose_status') : i18n.t('common.sort_by')}
-            </Text>
-            <FlatList 
+            <Text style={styles.modalTitle}>{modalType === 'platform' ? i18n.t('common.choose_platform') : i18n.t('common.sort_by')}</Text>
+            <FlatList
               data={getModalOptions()}
               keyExtractor={item => item.id}
               showsVerticalScrollIndicator={false}
-              renderItem={({item}) => {
-                const isActive = (modalType === 'platform' && filterPlatform === item.id) ||
-                                 (modalType === 'sort' && sortBy === item.id);
+              renderItem={({ item }) => {
+                const isActive = (modalType === 'platform' && filterPlatform === item.id) || (modalType === 'sort' && sortBy === item.id);
                 return (
-                  <TouchableOpacity 
-                    style={styles.modalOption} 
+                  <TouchableOpacity
+                    style={styles.modalOption}
                     onPress={() => {
                       if (modalType === 'platform') setFilterPlatform(item.id);
                       if (modalType === 'sort') setSortBy(item.id);
                       setModalVisible(false);
                     }}
                   >
-                    <Text style={[styles.modalOptionText, isActive && styles.modalOptionTextActive]}>
-                      {item.label}
-                    </Text>
+                    <Text style={[styles.modalOptionText, isActive && styles.modalOptionTextActive]}>{item.label}</Text>
                     {isActive && <MaterialIcons name="check" size={20} color="#4CE5AE" />}
                   </TouchableOpacity>
                 );
@@ -412,7 +373,7 @@ const styles = StyleSheet.create({
   cardSelected: { borderColor: '#dc3545', borderWidth: 2, backgroundColor: 'rgba(220, 53, 69, 0.1)' },
   coverSelected: { opacity: 0.5 },
   checkOverlay: { position: 'absolute', right: 20, top: '40%' },
-  acquireButton: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.05)' },
+  returnButton: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.05)' },
   cover: { display: 'flex', alignItems: 'center', justifyContent: 'center', justifyItems: 'center', flexDirection: 'row-reverse', width: '100', height: '100vh' },
   placeholderCover: { backgroundColor: '#151515' },
   cardInfo: { flex: 1, padding: 12, justifyContent: 'center' },
@@ -421,14 +382,14 @@ const styles = StyleSheet.create({
   badge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, gap: 4 },
   badgePlatform: { backgroundColor: '#fff' },
   badgePrice: { backgroundColor: '#2e6c56' },
+  badgeMeta: { backgroundColor: '#ed9c01' },
   badgeTextPlatform: { fontSize: 11, fontWeight: 'bold', color: '#111' },
   badgeTextLight: { fontSize: 11, fontWeight: 'bold', color: '#fff' },
+  loanInfoContainer: { backgroundColor: 'rgba(240, 173, 78, 0.1)', padding: 6, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(240, 173, 78, 0.3)', marginTop: 4 },
+  loanInfoText: { fontSize: 11, color: '#ccc', marginBottom: 2 },
+  loanInfoBold: { fontWeight: 'bold', color: '#fff' },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
   emptyText: { color: '#6c7d76', fontSize: 16, textAlign: 'center', marginBottom: 20 },
-  searchButton: { backgroundColor: 'rgba(76, 229, 174, 0.1)', borderColor: '#4CE5AE', borderWidth: 1, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 50 },
-  searchButtonText: { color: '#4CE5AE', fontWeight: 'bold', fontSize: 16 },
   fab: { position: 'absolute', bottom: 25, right: 25, width: 60, height: 60, borderRadius: 30, backgroundColor: '#4CE5AE', justifyContent: 'center', alignItems: 'center', elevation: 5 },
-  fabText: { color: '#111', fontSize: 32, fontWeight: 'bold', lineHeight: 34 },
   fabDelete: { backgroundColor: '#dc3545' }
-  
 });
