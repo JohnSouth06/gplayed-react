@@ -102,9 +102,8 @@
     "empty_search": "Aucun jeu ne correspond à votre recherche.",
     "delete_confirm_text": "Voulez-vous vraiment retirer ces %{count} jeux de votre liste de souhaits ?",
     "acquire_title": "Ajouter à la collection",
-    "acquire_question": "Dans quel format avez-vous obtenu \"%{game}\" ?",
-    "acquire_physical": "Physique",
-    "acquire_digital": "Digital",
+    "acquire_question": "Voulez-vous ajouter ce jeu à votre collection ?",
+    "acquire_yes": "Oui",
     "acquire_success": "Jeu ajouté à votre liste de souhaits !",
     "acquire_error": "Impossible de mettre à jour le jeu."
   },
@@ -118,6 +117,7 @@
     "completed": "Platinés / 100%",
     "collection_value": "Valeur de la collection",
     "completion_rate": "Taux de complétion",
+    "completion_percent": "de jeux terminés",
     "platform_distribution": "Répartition par plateforme",
     "empty_text": "Ajoutez des jeux à votre collection pour voir vos statistiques."
   },

@@ -102,9 +102,8 @@
     "empty_search": "No games match your search.",
     "delete_confirm_text": "Are you sure you want to remove these %{count} games from your wishlist?",
     "acquire_title": "Add to library",
-    "acquire_question": "In what format did you get \"%{game}\"?",
-    "acquire_physical": "Physical",
-    "acquire_digital": "Digital",
+    "acquire_question": "Do you want to add this game to your collection?",
+    "acquire_yes": "Yes",
     "acquire_success": "Game added to your wishlist!",
     "acquire_error": "Unable to update the game."
   },
@@ -118,6 +117,7 @@
     "completed": "Platinum / 100%",
     "collection_value": "Collection Value",
     "completion_rate": "Completion Rate",
+    "completion_percent": "of completed games",
     "platform_distribution": "Platform Distribution",
     "empty_text": "Add games to your library to see your statistics."
   },

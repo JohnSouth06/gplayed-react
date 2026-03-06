@@ -3,9 +3,9 @@ import { Image as ExpoImage } from 'expo-image';
 import { Tabs, useFocusEffect, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import i18n from '../config/i18n';
+import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { getRegionalPrice } from '../config/currency';
+import i18n from '../config/i18n';
 
 
 export default function HomeScreen() {
@@ -184,6 +184,10 @@ export default function HomeScreen() {
   const renderGameCard = ({ item }) => {
     const isSelected = selectedGames.includes(item.id);
     const statusConfig = getStatusConfig(item.status);
+    
+    const finalImageUrl = item.image_url 
+      ? (item.image_url.startsWith('http') ? item.image_url : `https://www.g-played.com/${item.image_url}`)
+      : null;
 
     return (
       <TouchableOpacity
@@ -192,8 +196,14 @@ export default function HomeScreen() {
         onLongPress={() => handleLongPress(item.id)}
         onPress={() => handlePress(item)}
       >
-        {item.image_url ? (
-          <Image source={{ uri: `https://www.g-played.com/${item.image_url}` }} style={[styles.cover, isSelected && styles.coverSelected]} />
+        {finalImageUrl ? (
+          <ExpoImage 
+            source={{ uri: finalImageUrl }} 
+            style={[styles.cover, isSelected && styles.coverSelected]} 
+            contentFit="cover" 
+            cachePolicy="memory-disk" 
+            transition={200} 
+          />
         ) : (
           <View style={[styles.cover, styles.placeholderCover]} />
         )}
@@ -221,6 +231,12 @@ export default function HomeScreen() {
                 <Text style={styles.badgeTextLight}>{item.metacritic_score}</Text>
               </View>
             ) : null}
+            {item.playtime && parseFloat(item.playtime) > 0 ? (
+              <View style={[styles.badge, styles.badgePlaytime]}>
+                <MaterialIcons name="schedule" size={12} color="#fff" />
+                <Text style={styles.badgeTextLight}>{item.playtime}h</Text>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.statusRow}>
@@ -236,7 +252,7 @@ export default function HomeScreen() {
                 style={styles.quickLendButton} 
                 onPress={() => { setGameToLend(item); setLoanedToName(''); setLendModalVisible(true); }}
               >
-                <MaterialIcons name="handshake" size={20} color="#f0ad4e" />
+                <MaterialCommunityIcons name="handshake-outline" size={20} color="#f0ad4e" />
               </TouchableOpacity>
             )}
           </View>
@@ -459,6 +475,7 @@ const styles = StyleSheet.create({
   badge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, gap: 4 },
   badgePlatform: { backgroundColor: '#fff' },
   badgePrice: { backgroundColor: '#2e6c56' },
+  badgePlaytime: { backgroundColor: '#8e44ad' },
   badgeMeta: { backgroundColor: '#ed9c01' },
   badgeTextPlatform: { fontSize: 11, fontWeight: 'bold', color: '#111' },
   badgeTextLight: { fontSize: 11, fontWeight: 'bold', color: '#fff' },

@@ -3,9 +3,8 @@ import { Tabs, useFocusEffect, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
-import i18n from '../config/i18n';
 import { getRegionalPrice } from '../config/currency';
+import i18n from '../config/i18n';
 
 export default function WishlistScreen() {
   const router = useRouter();
@@ -113,11 +112,10 @@ export default function WishlistScreen() {
   const promptAcquire = (game) => {
     Alert.alert(
       i18n.t('wishlist.acquire_title'),
-      i18n.t('wishlist.acquire_text', { title: game.title }),
+      i18n.t('wishlist.acquire_question', { title: game.title }),
       [
+        { text: i18n.t('wishlist.acquire_yes'), onPress: () => acquireGame(game.id, 'physical') },
         { text: i18n.t('common.cancel'), style: "cancel" },
-        { text: i18n.t('wishlist.physical'), onPress: () => acquireGame(game.id, 'physical') },
-        { text: i18n.t('wishlist.digital'), onPress: () => acquireGame(game.id, 'digital') }
       ]
     );
   };
