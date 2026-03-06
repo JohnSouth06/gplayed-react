@@ -1,6 +1,9 @@
 {
   "common": {
     "success": "Success",
+    "game_added": "has been added",
+    "already_acquired": "Already acquired",
+    "already_added": "You have already added this game on:",
     "error": "Error",
     "network_error": "Network Error",
     "cancel": "Cancel",

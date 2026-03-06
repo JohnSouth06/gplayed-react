@@ -1,6 +1,9 @@
 {
   "common": {
     "success": "Succès",
+    "game_added": "a été ajouté",
+    "already_acquired": "Déjà possédé",
+    "already_added": "Vous avez déjà ajouté ce jeu sur :",
     "error": "Erreur",
     "network_error": "Erreur réseau",
     "cancel": "Annuler",
@@ -55,7 +58,7 @@
     "search_placeholder": "Rechercher un jeu...",
     "empty_text": "Aucun jeu ne correspond à vos filtres.",
     "delete_confirm_title": "Supprimer les jeux",
-    "delete_confirm_text": "Voulez-vous vraiment retirer ces %{count} jeux de votre ludothèque ?",
+    "delete_confirm_text": "Voulez-vous vraiment retirer ces %{count} jeux de votre collection ?",
     "lend_title": "Prêter ce jeu",
     "lend_question": "À qui prêtez-vous %{game} ?",
     "lend_placeholder": "Nom de la personne",
@@ -86,7 +89,7 @@
     "return_title": "Récupérer le jeu",
     "return_question": "Avez-vous récupéré \"%{game}\" de la part de %{name} ?",
     "return_confirm": "Oui, récupéré",
-    "return_success": "Jeu de retour dans votre ludothèque !",
+    "return_success": "Jeu de retour dans votre collection !",
     "return_error": "Impossible de mettre à jour le jeu.",
     "loaned_to": "À :",
     "loaned_date": "Le :"
@@ -98,7 +101,7 @@
     "search_button": "Chercher un jeu",
     "empty_search": "Aucun jeu ne correspond à votre recherche.",
     "delete_confirm_text": "Voulez-vous vraiment retirer ces %{count} jeux de votre liste de souhaits ?",
-    "acquire_title": "Ajouter à la ludothèque",
+    "acquire_title": "Ajouter à la collection",
     "acquire_question": "Dans quel format avez-vous obtenu \"%{game}\" ?",
     "acquire_physical": "Physique",
     "acquire_digital": "Digital",
@@ -116,7 +119,7 @@
     "collection_value": "Valeur de la collection",
     "completion_rate": "Taux de complétion",
     "platform_distribution": "Répartition par plateforme",
-    "empty_text": "Ajoutez des jeux à votre ludothèque pour voir vos statistiques."
+    "empty_text": "Ajoutez des jeux à votre collection pour voir vos statistiques."
   },
   "profile": {
     "logout_title": "Déconnexion",

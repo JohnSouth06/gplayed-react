@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import i18n from '../config/i18n';
 
 export default function GameDetailScreen() {
@@ -11,7 +11,16 @@ export default function GameDetailScreen() {
   const game = gameData ? JSON.parse(gameData) : null;
 
   const [title, setTitle] = useState(game?.title || '');
-  const [platform, setPlatform] = useState(game?.platform || '');
+  
+  // --- NOUVEAU : GESTION DES PLATEFORMES ---
+  const initialPlatforms = game?.platform ? (game.platform === 'Multiplateforme' ? [] : [game.platform]) : [];
+  const [selectedPlatforms, setSelectedPlatforms] = useState(initialPlatforms);
+  const [isPlatformModalVisible, setPlatformModalVisible] = useState(false);
+  const [newPlatformText, setNewPlatformText] = useState('');
+  const [availablePlatforms, setAvailablePlatforms] = useState([
+    'PS4', 'PS5', 'Xbox One', 'Xbox Series', 'Nintendo Switch', 'PC'
+  ]);
+
   const [status, setStatus] = useState(game?.status || 'not_started');
   const [rating, setRating] = useState(game?.user_rating ? game.user_rating.toString() : '');
   const [metacritic, setMetacritic] = useState(game?.metacritic_score ? game.metacritic_score.toString() : '');
@@ -25,15 +34,43 @@ export default function GameDetailScreen() {
 
   if (!game) return <View style={styles.container}><Text style={styles.errorText}>{i18n.t('gamedetail.not_found')}</Text></View>;
 
+  // Fonction pour cocher/décocher une plateforme
+  const togglePlatform = (plat) => {
+    if (selectedPlatforms.includes(plat)) {
+      setSelectedPlatforms(selectedPlatforms.filter(p => p !== plat));
+    } else {
+      setSelectedPlatforms([...selectedPlatforms, plat]);
+    }
+  };
+
+  // Fonction pour ajouter une plateforme qui n'est pas dans la liste
+  const addNewPlatform = () => {
+    const plat = newPlatformText.trim();
+    if (plat && !availablePlatforms.includes(plat)) {
+      setAvailablePlatforms([...availablePlatforms, plat]);
+      setSelectedPlatforms([...selectedPlatforms, plat]); // On la sélectionne automatiquement
+      setNewPlatformText(''); // On vide le champ
+    }
+  };
+
   const handleUpdate = async () => {
     setIsSaving(true);
+
+    // Détermination de la plateforme finale à enregistrer
+    let finalPlatform = '';
+    if (selectedPlatforms.length > 1) {
+      finalPlatform = 'Multiplateforme';
+    } else if (selectedPlatforms.length === 1) {
+      finalPlatform = selectedPlatforms[0];
+    }
+
     try {
       const token = await SecureStore.getItemAsync('userToken');
       const response = await fetch(API_UPDATE_URL, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: game.id, title, platform, status, user_rating: rating, metacritic_score: metacritic, genres, estimated_price: price, comment
+          id: game.id, title, platform: finalPlatform, status, user_rating: rating, metacritic_score: metacritic, genres, estimated_price: price, comment
         })
       });
       const data = await response.json();
@@ -58,6 +95,14 @@ export default function GameDetailScreen() {
     { id: 'wishlist', label: i18n.t('status.wishlist') }
   ];
 
+  // Texte à afficher sur le faux input de plateforme
+  let displayPlatformText = 'Sélectionner une plateforme...';
+  if (selectedPlatforms.length > 1) {
+    displayPlatformText = 'Multiplateforme';
+  } else if (selectedPlatforms.length === 1) {
+    displayPlatformText = selectedPlatforms[0];
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
       <View style={styles.header}>
@@ -76,8 +121,13 @@ export default function GameDetailScreen() {
         <Text style={styles.label}>{i18n.t('gamedetail.label_title')}</Text>
         <TextInput style={styles.input} value={title} onChangeText={setTitle} />
 
-        <Text style={styles.label}>{i18n.t('gamedetail.label_platform')}</Text>
-        <TextInput style={styles.input} value={platform} onChangeText={setPlatform} />
+        {/* NOUVEAU BOUTON PLATEFORME (Remplace le TextInput) */}
+        <Text style={styles.label}>{i18n.t('gamedetail.label_platform') || 'PLATEFORME'}</Text>
+        <TouchableOpacity style={styles.input} onPress={() => setPlatformModalVisible(true)}>
+          <Text style={{ color: selectedPlatforms.length > 0 ? '#fff' : '#6c7d76', fontSize: 15 }}>
+             {displayPlatformText}
+          </Text>
+        </TouchableOpacity>
 
         <Text style={styles.label}>{i18n.t('gamedetail.label_status')}</Text>
         <View style={styles.statusContainer}>
@@ -123,6 +173,50 @@ export default function GameDetailScreen() {
           {isSaving ? <ActivityIndicator color="#111" /> : <Text style={styles.saveButtonText}>{i18n.t('common.save')}</Text>}
         </TouchableOpacity>
       </View>
+
+      {/* MODAL POUR CHOISIR LES PLATEFORMES */}
+      <Modal visible={isPlatformModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Choisir les plateformes</Text>
+            
+            <FlatList
+              data={availablePlatforms}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => {
+                const isSelected = selectedPlatforms.includes(item);
+                return (
+                  <TouchableOpacity style={styles.modalOption} onPress={() => togglePlatform(item)}>
+                    <Text style={[styles.modalOptionText, isSelected && { color: '#4CE5AE', fontWeight: 'bold' }]}>{item}</Text>
+                    <MaterialIcons name={isSelected ? "check-box" : "check-box-outline-blank"} size={24} color={isSelected ? "#4CE5AE" : "#6c7d76"} />
+                  </TouchableOpacity>
+                )
+              }}
+              style={{ maxHeight: 300 }}
+              showsVerticalScrollIndicator={false}
+            />
+
+            {/* Ajouter une nouvelle plateforme dynamique */}
+            <View style={styles.newPlatformContainer}>
+              <TextInput
+                style={[styles.input, { flex: 1, height: 44, padding: 10, fontSize: 14 }]}
+                placeholder="Autre plateforme..."
+                placeholderTextColor="#6c7d76"
+                value={newPlatformText}
+                onChangeText={setNewPlatformText}
+              />
+              <TouchableOpacity style={styles.addPlatformBtn} onPress={addNewPlatform}>
+                <MaterialIcons name="add" size={24} color="#111" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={[styles.saveButton, { marginTop: 20 }]} onPress={() => setPlatformModalVisible(false)}>
+              <Text style={styles.saveButtonText}>Valider ({selectedPlatforms.length})</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </ScrollView>
   );
 }
@@ -142,8 +236,17 @@ const styles = StyleSheet.create({
   statusTextActive: { color: '#4CE5AE' },
   row: { flexDirection: 'row', gap: 16 },
   col: { flex: 1 },
-  input: { backgroundColor: '#202020', color: '#fff', borderRadius: 12, padding: 14, fontSize: 15, borderWidth: 1, borderColor: '#333' },
+  input: { backgroundColor: '#202020', color: '#fff', borderRadius: 12, padding: 14, fontSize: 15, borderWidth: 1, borderColor: '#333', justifyContent: 'center' },
   textArea: { minHeight: 100 },
   saveButton: { backgroundColor: '#4CE5AE', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 30 },
-  saveButtonText: { color: '#111', fontSize: 18, fontWeight: 'bold' }
+  saveButtonText: { color: '#111', fontSize: 18, fontWeight: 'bold' },
+
+  // Nouveaux styles pour la Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#1b1b1b', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%', borderWidth: 1, borderColor: '#333' },
+  modalTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  modalOption: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#333' },
+  modalOptionText: { color: '#ccc', fontSize: 16 },
+  newPlatformContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 20, gap: 10 },
+  addPlatformBtn: { backgroundColor: '#4CE5AE', width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
 });
