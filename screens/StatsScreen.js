@@ -1,18 +1,88 @@
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { getLocales } from 'expo-localization';
 import { useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PieChart, ProgressChart } from 'react-native-chart-kit';
 import i18n from '../config/i18n';
-import { getLocales } from 'expo-localization';
 
 const screenWidth = Dimensions.get('window').width;
+
+// --- UTILS : Normalisation et Couleurs ---
+
+// Uniformise les noms des plateformes
+const normalizePlatformName = (name) => {
+  if (!name) return 'Inconnu';
+  const n = name.trim().toLowerCase();
+  
+  // Sony
+  if (n === 'ps1' || n === 'psx' || n === 'playstation') return 'PlayStation 1';
+  if (n === 'ps2' || n === 'playstation 2') return 'PlayStation 2';
+  if (n === 'ps3' || n === 'playstation 3') return 'PlayStation 3';
+  if (n === 'ps4' || n === 'playstation 4') return 'PlayStation 4';
+  if (n === 'ps5' || n === 'playstation 5') return 'PlayStation 5';
+  if (n === 'psp' || n === 'playstation portable') return 'PlayStation Portable';
+  if (n === 'ps vita' || n === 'psvita' || n === 'playstation vita') return 'PlayStation Vita';
+  
+  // Microsoft
+  if (n === 'xbox') return 'Xbox';
+  if (n === 'xbox 360') return 'Xbox 360';
+  if (n === 'xbox one') return 'Xbox One';
+  if (n === 'xbox series' || n === 'xbox series x' || n === 'xbox series s' || n === 'xbox series x/s') return 'Xbox Series';
+  
+  // Nintendo
+  if (n === 'switch' || n === 'nintendo switch') return 'Nintendo Switch';
+  if (n === 'wii') return 'Nintendo Wii';
+  if (n === 'wii u' || n === 'wiiu') return 'Nintendo Wii U';
+  if (n === 'ds' || n === 'nintendo ds') return 'Nintendo DS';
+  if (n === '3ds' || n === 'nintendo 3ds') return 'Nintendo 3DS';
+  if (n === 'gamecube' || n === 'ngc') return 'Nintendo GameCube';
+  if (n === 'n64' || n === 'nintendo 64') return 'Nintendo 64';
+  if (n === 'snes' || n === 'super nintendo') return 'Super Nintendo';
+  if (n === 'nes' || n === 'nintendo') return 'Nintendo (NES)';
+  if (n === 'game boy' || n === 'gameboy') return 'Game Boy';
+  if (n === 'game boy advance' || n === 'gba') return 'Game Boy Advance';
+  if (n === 'game boy color' || n === 'gbc') return 'Game Boy Color';
+  
+  // PC / Autres
+  if (n === 'pc' || n === 'windows' || n === 'steam' || n === 'epic') return 'PC';
+  if (n === 'mac' || n === 'macos') return 'Mac';
+  
+  // Remplacement par défaut (Met la première lettre de chaque mot en majuscule)
+  return name.replace(/\b\w/g, l => l.toUpperCase());
+};
+
+// Détermine le constructeur pour attribuer la bonne palette de couleurs
+const getBrandFromName = (name) => {
+  const n = name.toLowerCase();
+  if (n.includes('playstation')) return 'playstation';
+  if (n.includes('xbox')) return 'xbox';
+  if (n.includes('nintendo') || n.includes('game boy') || n === 'super nintendo') return 'nintendo';
+  if (n === 'pc' || n === 'mac') return 'pc';
+  return 'default';
+};
+
+// Palettes de nuances pour chaque constructeur
+const BRAND_COLORS = {
+  // Nuances de bleu (#0072CE en base)
+  playstation: ['#0072CE', '#005BB5', '#004494', '#338DDF', '#66A8E8', '#002E6B', '#99C4F1'],
+  // Nuances de vert (#0E7A0D en base)
+  xbox: ['#0E7A0D', '#0B5D0A', '#084007', '#3EA63B', '#6DC26A', '#062E05', '#9FD99D'],
+  // Nuances de rouge (#FE0016 en base)
+  nintendo: ['#FE0016', '#CC0012', '#99000D', '#FF3345', '#FF6674', '#660009', '#FF99A3'],
+  // Nuances cyan/bleu clair pour PC
+  pc: ['#09e0fe', '#07b5cd', '#058899', '#3ae6fe', '#6cecfe'],
+  // Nuances de gris/doré pour les autres (Sega, Atari, etc.)
+  default: ['#888888', '#ed9c01', '#666666', '#cc8500', '#aaaaaa']
+};
+
 
 export default function StatsScreen() {
   const [games, setGames] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Remarque : Le dossier API /api/ est bien conservé dans l'URL
   const API_URL = 'https://www.g-played.com/api/index.php?action=api_get_games';
 
   useFocusEffect(
@@ -28,7 +98,6 @@ export default function StatsScreen() {
       const response = await fetch(API_URL, { headers: { 'Authorization': `Bearer ${token}` } });
       const data = await response.json();
       if (data.success) {
-        // RÈGLE : On exclut strictement la wishlist et les jeux prêtés
         const validGames = data.data.filter(g => g.status !== 'wishlist' && g.status !== 'loaned');
         setGames(validGames);
       }
@@ -51,57 +120,71 @@ export default function StatsScreen() {
   }
 
   // --- CALCUL DES STATISTIQUES ---
-
-  // 1. Compteurs Principaux (Priorité Physique)
   const physicalGames = games.filter(g => g.format === 'physical');
   const digitalGames = games.filter(g => g.format === 'digital');
-  
   const playingGames = games.filter(g => g.status === 'playing');
-  const completedGames = games.filter(g => g.status === 'completed');
+  const completedGames = games.filter(g => g.status === 'completed' || g.status === 'finished');
 
-  // 2. Valeur de la collection
   const userRegion = getLocales()[0]?.regionCode || 'FR';
   const currencySymbol = userRegion === 'US' ? '$' : (userRegion === 'JP' ? '¥' : '€');
-  const decimals = userRegion === 'JP' ? 0 : 2; // Le Yen n'a pas de centimes
+  const decimals = userRegion === 'JP' ? 0 : 2;
 
-  const getGameValue = (g) => {
-    if (userRegion === 'US' && g.price_usa) return parseFloat(g.price_usa);
-    if (userRegion === 'JP' && g.price_jp) return parseFloat(g.price_jp);
-    return parseFloat(g.price_pal || g.estimated_price || 0);
-  };
   const physicalValue = physicalGames.reduce((acc, g) => acc + (parseFloat(g.estimated_price) || 0), 0);
   const digitalValue = digitalGames.reduce((acc, g) => acc + (parseFloat(g.estimated_price) || 0), 0);
   const totalValue = physicalValue + digitalValue;
 
-  // 3. Taux de complétion
   const completionRate = games.length > 0 ? completedGames.length / games.length : 0;
 
-  // 4. Répartition par Plateforme (Pour le PieChart)
+
+  // --- REPARTITION PAR PLATEFORME ---
   const platformCounts = {};
+  
   games.forEach(g => {
-    let platL = g.platform ? g.platform.toLowerCase() : '';
-    let standardized = 'Autre';
-    let color = '#aaa';
 
-    if (platL.includes(',') || platL.includes('/') || platL.includes('multiplateforme')) { standardized = 'Multi'; color = '#f0ad4e'; }
-    else if (platL.includes('ps') || platL.includes('playstation')) { standardized = 'PlayStation'; color = '#0a57ae'; }
-    else if (platL.includes('xbox')) { standardized = 'Xbox'; color = '#0f780f'; }
-    else if (platL.includes('switch') || platL.includes('nintendo')) { standardized = 'Nintendo'; color = '#e60012'; }
-    else if (platL.includes('pc') || platL.includes('windows')) { standardized = 'PC'; color = '#09e0fe'; }
+    const rawPlatform = g.platform || 'Inconnu';
 
-    if (!platformCounts[standardized]) {
-      platformCounts[standardized] = { name: standardized, population: 0, color: color, legendFontColor: "#ccc", legendFontSize: 12 };
-    }
-    platformCounts[standardized].population += 1;
+    const separatedPlatforms = rawPlatform.split(/[,/]/);
+
+    separatedPlatforms.forEach(p => {
+      // 1. On nettoie et unifie le nom (le trim() est géré dans normalizePlatformName)
+      const platformName = normalizePlatformName(p);
+
+      if (!platformCounts[platformName]) {
+        platformCounts[platformName] = { 
+          name: platformName, 
+          population: 0, 
+          legendFontColor: "#ccc", 
+          legendFontSize: 12 
+        };
+      }
+      platformCounts[platformName].population += 1;
+    });
   });
 
-  const pieChartData = Object.values(platformCounts).sort((a, b) => b.population - a.population);
+  // Compteurs pour savoir à quelle nuance on en est pour chaque constructeur
+  const colorIndexTracker = { playstation: 0, xbox: 0, nintendo: 0, pc: 0, default: 0 };
 
-  // Configuration visuelle des graphiques
+  // 2. On trie et on assigne les nuances
+  const pieChartData = Object.values(platformCounts)
+    .sort((a, b) => b.population - a.population)
+    .map((item) => {
+      const brand = getBrandFromName(item.name);
+      const palette = BRAND_COLORS[brand];
+      
+      // On pioche la couleur, et on incrémente l'index pour que la prochaine plateforme de la même marque ait une autre nuance
+      const assignedColor = palette[colorIndexTracker[brand] % palette.length];
+      colorIndexTracker[brand] += 1;
+
+      return {
+        ...item,
+        color: assignedColor
+      };
+    });
+
   const chartConfig = {
     backgroundGradientFrom: "#202020",
     backgroundGradientTo: "#202020",
-    color: (opacity = 1) => `rgba(76, 229, 174, ${opacity})`, // Couleur principale verte
+    color: (opacity = 1) => `rgba(76, 229, 174, ${opacity})`,
     strokeWidth: 2,
     useShadowColorFromDataset: false
   };
@@ -113,7 +196,7 @@ export default function StatsScreen() {
       {/* COMPTEURS PRINCIPAUX */}
       <View style={styles.cardsRow}>
         <View style={[styles.statCard, styles.mainCard]}>
-          <MaterialIcons name="library-books" size={24} color="#4CE5AE" />
+          <MaterialCommunityIcons name="gamepad-variant" size={24} color="#4CE5AE" />
           <Text style={styles.statValue}>{games.length}</Text>
           <Text style={styles.statLabel}>{i18n.t('stats.owned_games')}</Text>
           
@@ -138,7 +221,7 @@ export default function StatsScreen() {
         </View>
       </View>
 
-      {/* TAUX DE COMPLÉTION (Progress Ring Animé) */}
+      {/* TAUX DE COMPLÉTION */}
       <View style={styles.chartContainer}>
         <Text style={styles.chartTitle}>{i18n.t('stats.completion_rate')}</Text>
         <View style={styles.progressRow}>
@@ -153,31 +236,27 @@ export default function StatsScreen() {
           />
           <View style={styles.progressInfo}>
             <Text style={styles.progressPercentage}>{Math.round(completionRate * 100)}%</Text>
-            <Text style={styles.progressSub}>de jeux terminés</Text>
+            <Text style={styles.progressSub}>{i18n.t('stats.completion_percent')}</Text>
           </View>
         </View>
       </View>
 
       {/* VALEUR DE LA COLLECTION */}
-      {/* VALEUR DE LA COLLECTION */}
       <View style={styles.chartContainer}>
         <Text style={styles.chartTitle}>{i18n.t('stats.collection_value')}</Text>
         
-        {/* On utilise dynamiquement le symbole et le nombre de décimales */}
         <Text style={styles.totalValue}>{totalValue.toFixed(decimals)} {currencySymbol}</Text>
         
         <View style={styles.valueBarContainer}>
           <View style={[styles.valueBarPhysical, { flex: physicalValue || 1 }]} />
-          <View style={[styles.valueBarDigital, { flex: digitalValue || 1 }]} />
         </View>
         
         <View style={styles.valueLabels}>
           <Text style={styles.valuePhysicalText}>• {i18n.t('stats.physical')} : {physicalValue.toFixed(decimals)} {currencySymbol}</Text>
-          <Text style={styles.valueDigitalText}>• {i18n.t('stats.digital')} : {digitalValue.toFixed(decimals)} {currencySymbol}</Text>
         </View>
       </View>
 
-      {/* RÉPARTITION PAR PLATEFORME (Pie Chart Animé) */}
+      {/* RÉPARTITION PAR PLATEFORME */}
       <View style={styles.chartContainer}>
         <Text style={styles.chartTitle}>{i18n.t('stats.platform_distribution')}</Text>
         <PieChart
