@@ -7,6 +7,7 @@
     "error": "Error",
     "network_error": "Network Error",
     "cancel": "Cancel",
+    "send": "Cancel",
     "confirm": "Confirm",
     "delete": "Delete",
     "save": "Save",
@@ -23,6 +24,10 @@
     "choose_platform": "Choose a platform",
     "all_platforms": "All platforms",
     "other": "Other",
+    "search_placeholder": "Search for a game...",
+    "add_game": "Add a game",
+    "confirm_platform": "Confirm Platform",
+    "other_platform": "Other platform...",
     "multiplatform": "Multiplatform",
     "unknown_price": "Unknown price",
     "unknown": "Unknown"
@@ -50,7 +55,11 @@
     "error_empty": "Please fill in all fields.",
     "success_msg": "Login successful! (Token saved)",
     "error_invalid": "Incorrect credentials.",
-    "error_network": "Unable to contact the server."
+    "error_network": "Unable to contact the server.",
+    "forgot_password": "Forgot password?",
+    "reset_title": "Reset Password",
+    "reset_sent": "A reset email has been sent to you.",
+    "email_required": "Please enter your email address."
   },
   "home": {
     "tab_physical": "Physical",
@@ -102,9 +111,8 @@
     "empty_search": "No games match your search.",
     "delete_confirm_text": "Are you sure you want to remove these %{count} games from your wishlist?",
     "acquire_title": "Add to library",
-    "acquire_question": "In what format did you get \"%{game}\"?",
-    "acquire_physical": "Physical",
-    "acquire_digital": "Digital",
+    "acquire_question": "Do you want to add this game to your collection?",
+    "acquire_yes": "Yes",
     "acquire_success": "Game added to your wishlist!",
     "acquire_error": "Unable to update the game."
   },
@@ -118,6 +126,7 @@
     "completed": "Platinum / 100%",
     "collection_value": "Collection Value",
     "completion_rate": "Completion Rate",
+    "completion_percent": "of completed games",
     "platform_distribution": "Platform Distribution",
     "empty_text": "Add games to your library to see your statistics."
   },

@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import React, { useState, useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import i18n from '../config/i18n';
 
@@ -11,6 +11,7 @@ export default function SearchScreen() {
   const [results, setResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [addingId, setAddingId] = useState(null);
+  const router = useRouter();
 
   // GESTION DES DOUBLONS AVEC LA COLLECTION DE L'UTILISATEUR
   const [myGames, setMyGames] = useState([]);
@@ -148,6 +149,11 @@ export default function SearchScreen() {
     setPlatformModalVisible(false);
     setAddingId(gameToAdd.uniqueKey);
 
+    let imageToSave = gameToAdd.background_image || (gameToAdd.cover ? gameToAdd.cover.url : null);
+    if (imageToSave && imageToSave.startsWith('//')) {
+      imageToSave = `https:${imageToSave}`;
+    }
+
     try {
       const token = await SecureStore.getItemAsync('userToken');
       const response = await fetch(API_SAVE_URL, {
@@ -162,16 +168,16 @@ export default function SearchScreen() {
           platform: selectedPlatform, 
           status: defaultStatus || 'not_started', 
           format: defaultFormat || 'physical', 
-          background_image: gameToAdd.background_image || (gameToAdd.cover ? gameToAdd.cover.url : null)
+          background_image: imageToSave,
+          metacritic: gameToAdd.metacritic
         })
       });
       
       const data = await response.json();
       if (data.success) {
         Alert.alert(i18n.t('common.success'), `${gameToAdd.name} (${selectedPlatform}) ${i18n.t('common.game_added')} !`);
-        fetchMyGames(); // Met à jour la collection en arrière-plan pour griser le bouton instantanément
+        fetchMyGames(); 
       } else {
-        // Le backend PHP bloquera aussi le doublon et renverra son message d'erreur
         Alert.alert(i18n.t('common.error'), data.message || i18n.t('common.error_adding_game'));
       }
     } catch (error) {
@@ -247,12 +253,27 @@ export default function SearchScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.headerTitle}>Ajouter un jeu</Text>
+      
+      <View style={styles.headerContainer}>
+        <TouchableOpacity 
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back(); // Retourne exactement à l'écran précédent
+            } else {
+              router.navigate('/home'); // Sécurité
+            }
+          }} 
+          style={styles.backButton}
+        >
+          <MaterialIcons name="arrow-back" size={28} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{i18n.t('common.add_game')}</Text>
+      </View>
       
       <View style={styles.searchBox}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Rechercher sur IGDB..."
+          placeholder={i18n.t('common.search_placeholder')}
           placeholderTextColor="#6c7d76"
           value={query}
           onChangeText={setQuery}
@@ -273,11 +294,10 @@ export default function SearchScreen() {
         />
       )}
 
-      {/* MODAL DE CONFIRMATION DE PLATEFORME */}
-      <Modal visible={isPlatformModalVisible} transparent animationType="slide">
+      <Modal visible={isPlatformModalVisible} transparent animationType="slide" onRequestClose={() => setPlatformModalVisible(false)} >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Confirmer la plateforme</Text>
+            <Text style={styles.modalTitle}>{i18n.t('common.confirm_platform')}</Text>
             <Text style={styles.modalSubtitle}>{gameToAdd?.name}</Text>
             
             <FlatList
@@ -299,7 +319,7 @@ export default function SearchScreen() {
             <View style={styles.newPlatformContainer}>
               <TextInput
                 style={[styles.searchInput, styles.newPlatformInput]}
-                placeholder="Autre plateforme..."
+                placeholder={i18n.t('common.other_platform')}
                 placeholderTextColor="#6c7d76"
                 value={newPlatformText}
                 onChangeText={setNewPlatformText}
@@ -311,10 +331,10 @@ export default function SearchScreen() {
 
             <View style={styles.modalActions}>
               <TouchableOpacity style={[styles.saveButton, styles.cancelButton]} onPress={() => setPlatformModalVisible(false)}>
-                <Text style={[styles.saveButtonText, { color: '#fff' }]}>Annuler</Text>
+                <Text style={[styles.saveButtonText, { color: '#fff' }]}>{i18n.t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.saveButton} onPress={confirmAddGame}>
-                <Text style={styles.saveButtonText}>Ajouter</Text>
+                <Text style={styles.saveButtonText}>{i18n.t('common.save')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -326,7 +346,9 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1b1b1b' },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff', padding: 20, paddingTop: 60 },
+  headerContainer: { flexDirection: 'row', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 20 },
+  backButton: { marginRight: 16, padding: 4 },
+  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff' },
   searchBox: { marginHorizontal: 16, marginBottom: 20, backgroundColor: '#202020', borderRadius: 50, borderWidth: 1, borderColor: '#333' },
   searchInput: { color: '#fff', paddingHorizontal: 20, height: 50, fontSize: 16 },
   listContainer: { paddingHorizontal: 16, paddingBottom: 20 },
