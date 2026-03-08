@@ -1,10 +1,10 @@
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Tabs, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useCallback, useState } from 'react';
-import HeaderAvatar from '../../components/HeaderAvatar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import HeaderAvatar from '../../components/HeaderAvatar';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
@@ -32,9 +32,10 @@ export default function TabLayout() {
       checkLoanedStatus();
     }, [])
   );
-
+  
   return (
     <Tabs
+      backBehavior="history"
       screenOptions={{
         // 1. ON ACTIVE LA BARRE NATIVE
         headerShown: true, 
@@ -90,7 +91,7 @@ export default function TabLayout() {
         name="home"
         options={{
           title: 'Jeux',
-          tabBarIcon: ({ color }) => <MaterialIcons name="collections-bookmark" size={24} color={color} />,
+          tabBarIcon: ({ color }) => <MaterialCommunityIcons name="gamepad-variant" size={24} color={color} />,
         }}
       />
 
@@ -99,7 +100,7 @@ export default function TabLayout() {
         options={{
           title: 'Prêts',
           href: hasLoanedGames ? '/loaned' : null, 
-          tabBarIcon: ({ color }) => <MaterialIcons name="handshake" size={24} color={color} />,
+          tabBarIcon: ({ color }) => <MaterialCommunityIcons name="handshake-outline" size={24} color={color} />,
         }}
       />
 
@@ -107,7 +108,7 @@ export default function TabLayout() {
         name="wishlist"
         options={{
           title: 'Souhaits',
-          tabBarIcon: ({ color }) => <MaterialIcons name="favorite-border" size={24} color={color} />,
+          tabBarIcon: ({ color }) => <MaterialCommunityIcons name="hand-heart-outline" size={24} color={color} />,
         }}
       />
 
@@ -115,7 +116,7 @@ export default function TabLayout() {
         name="stats"
         options={{
           title: 'Stats',
-          tabBarIcon: ({ color }) => <MaterialIcons name="bar-chart" size={24} color={color} />,
+          tabBarIcon: ({ color }) => <MaterialCommunityIcons name="chart-areaspline-variant" size={24} color={color} />,
         }}
       />
 
@@ -123,7 +124,7 @@ export default function TabLayout() {
         name="progression"
         options={{
           title: 'Journal',
-          tabBarIcon: ({ color }) => <MaterialIcons name="menu-book" size={24} color={color} />,
+          tabBarIcon: ({ color }) => <MaterialCommunityIcons name="book-edit-outline" size={24} color={color} />,
         }}
       />
 

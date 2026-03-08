@@ -1,7 +1,9 @@
-import { MaterialIcons } from '@expo/vector-icons';
-import { useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import React, { useState, useCallback } from 'react';
+import * as WebBrowser from 'expo-web-browser';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import i18n from '../config/i18n';
 
@@ -11,6 +13,7 @@ export default function SearchScreen() {
   const [results, setResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [addingId, setAddingId] = useState(null);
+  const router = useRouter();
 
   // GESTION DES DOUBLONS AVEC LA COLLECTION DE L'UTILISATEUR
   const [myGames, setMyGames] = useState([]);
@@ -24,9 +27,15 @@ export default function SearchScreen() {
     'PS5', 'PS4', 'Xbox Series', 'Xbox One', 'Nintendo Switch', 'PC'
   ]);
 
-  const API_GET_GAMES_URL = 'https://www.g-played.com/api/index.php?action=api_get_games';
-  const API_SEARCH_URL = 'https://www.g-played.com/api/index.php?action=api_search_igdb';
-  const API_SAVE_URL = 'https://www.g-played.com/api/index.php?action=api_save_game';
+  // ÉTATS POUR STEAM
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('');
+  const [syncProgress, setSyncProgress] = useState(0);
+
+  const API_BASE = 'https://www.g-played.com/api/index.php';
+  const API_GET_GAMES_URL = `${API_BASE}?action=api_get_games`;
+  const API_SEARCH_URL = `${API_BASE}?action=api_search_igdb`;
+  const API_SAVE_URL = `${API_BASE}?action=api_save_game`;
 
   // Récupérer la collection actuelle à l'ouverture de la page pour bloquer les doublons
   useFocusEffect(
@@ -44,6 +53,65 @@ export default function SearchScreen() {
       if (data.success) setMyGames(data.data);
     } catch (error) {
       console.error("Erreur récupération collection:", error);
+    }
+  };
+
+  // --- LOGIQUE STEAM ---
+  const handleSteamAuth = async () => {
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      const returnUrl = Linking.createURL('/search');
+
+      const authUrl = `${API_BASE}?action=api_steam_login&token=${token}&redirect=${encodeURIComponent(returnUrl)}`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl)
+
+      if (result.type === 'success') startSteamSync(token);
+    } catch (error) { 
+      Alert.alert('Erreur', 'Impossible de joindre Steam.'); 
+    }
+  };
+
+  const startSteamSync = async (token) => {
+    setIsSyncing(true); setSyncProgress(0); setSyncStatus('Récupération de la bibliothèque...');
+    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+    try {
+      const listRes = await fetch(`${API_BASE}?action=api_steam_games`, { headers });
+      const listData = await listRes.json();
+      if (!listData.success) throw new Error(listData.error);
+      
+      const games = listData.games; 
+      const total = games.length;
+      
+      if (total === 0) { 
+        setSyncStatus('Votre collection est déjà à jour !'); 
+        setSyncProgress(100); 
+        setTimeout(() => setIsSyncing(false), 2000); 
+        return; 
+      }
+
+      let processed = 0;
+      for (const game of games) {
+        setSyncStatus(`Importation: ${game.name}`);
+        await fetch(`${API_BASE}?action=api_steam_import_single`, { method: 'POST', headers, body: JSON.stringify(game) });
+        processed++; 
+        setSyncProgress(Math.round((processed / total) * 100));
+      }
+      
+      setSyncStatus('Terminé !'); 
+      await fetch(`${API_BASE}?action=api_steam_complete`, { headers });
+      
+      setTimeout(() => {
+        setIsSyncing(false);
+        fetchMyGames(); // Rafraîchir les doublons
+        Alert.alert(
+          'Synchronisation terminée', 
+          `${total} jeux PC ont été ajoutés à votre collection digitale !`,
+          [{ text: 'Voir ma collection', onPress: () => router.back() }]
+        );
+      }, 2000);
+    } catch (e) {
+      setSyncStatus("Erreur de synchronisation."); 
+      setTimeout(() => setIsSyncing(false), 3000);
     }
   };
 
@@ -148,6 +216,11 @@ export default function SearchScreen() {
     setPlatformModalVisible(false);
     setAddingId(gameToAdd.uniqueKey);
 
+    let imageToSave = gameToAdd.background_image || (gameToAdd.cover ? gameToAdd.cover.url : null);
+    if (imageToSave && imageToSave.startsWith('//')) {
+      imageToSave = `https:${imageToSave}`;
+    }
+
     try {
       const token = await SecureStore.getItemAsync('userToken');
       const response = await fetch(API_SAVE_URL, {
@@ -162,16 +235,16 @@ export default function SearchScreen() {
           platform: selectedPlatform, 
           status: defaultStatus || 'not_started', 
           format: defaultFormat || 'physical', 
-          background_image: gameToAdd.background_image || (gameToAdd.cover ? gameToAdd.cover.url : null)
+          background_image: imageToSave,
+          metacritic: gameToAdd.metacritic
         })
       });
       
       const data = await response.json();
       if (data.success) {
         Alert.alert(i18n.t('common.success'), `${gameToAdd.name} (${selectedPlatform}) ${i18n.t('common.game_added')} !`);
-        fetchMyGames(); // Met à jour la collection en arrière-plan pour griser le bouton instantanément
+        fetchMyGames(); 
       } else {
-        // Le backend PHP bloquera aussi le doublon et renverra son message d'erreur
         Alert.alert(i18n.t('common.error'), data.message || i18n.t('common.error_adding_game'));
       }
     } catch (error) {
@@ -247,12 +320,27 @@ export default function SearchScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.headerTitle}>Ajouter un jeu</Text>
+      
+      <View style={styles.headerContainer}>
+        <TouchableOpacity 
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.navigate('/home'); 
+            }
+          }} 
+          style={styles.backButton}
+        >
+          <MaterialIcons name="arrow-back" size={28} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{i18n.t('common.add_game')}</Text>
+      </View>
       
       <View style={styles.searchBox}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Rechercher sur IGDB..."
+          placeholder={i18n.t('common.search_placeholder')}
           placeholderTextColor="#6c7d76"
           value={query}
           onChangeText={setQuery}
@@ -260,6 +348,16 @@ export default function SearchScreen() {
           returnKeyType="search"
         />
       </View>
+
+      {/* BOUTON STEAM AFFICHÉ UNIQUEMENT SI ON PROVIENT DE L'ONGLET DIGITAL */}
+      {defaultFormat === 'digital' && (
+        <View style={styles.steamSection}>
+          <TouchableOpacity style={styles.steamButton} onPress={handleSteamAuth}>
+            <FontAwesome5 name="steam" size={18} color="#fff" />
+            <Text style={styles.steamText}>Importer mes jeux Steam</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {isSearching ? (
         <ActivityIndicator size="large" color="#4CE5AE" style={{ marginTop: 40 }} />
@@ -273,11 +371,11 @@ export default function SearchScreen() {
         />
       )}
 
-      {/* MODAL DE CONFIRMATION DE PLATEFORME */}
-      <Modal visible={isPlatformModalVisible} transparent animationType="slide">
+      {/* MODALE CHOIX PLATEFORME */}
+      <Modal visible={isPlatformModalVisible} transparent animationType="slide" onRequestClose={() => setPlatformModalVisible(false)} >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Confirmer la plateforme</Text>
+            <Text style={styles.modalTitle}>{i18n.t('common.confirm_platform')}</Text>
             <Text style={styles.modalSubtitle}>{gameToAdd?.name}</Text>
             
             <FlatList
@@ -299,7 +397,7 @@ export default function SearchScreen() {
             <View style={styles.newPlatformContainer}>
               <TextInput
                 style={[styles.searchInput, styles.newPlatformInput]}
-                placeholder="Autre plateforme..."
+                placeholder={i18n.t('common.other_platform')}
                 placeholderTextColor="#6c7d76"
                 value={newPlatformText}
                 onChangeText={setNewPlatformText}
@@ -311,24 +409,55 @@ export default function SearchScreen() {
 
             <View style={styles.modalActions}>
               <TouchableOpacity style={[styles.saveButton, styles.cancelButton]} onPress={() => setPlatformModalVisible(false)}>
-                <Text style={[styles.saveButtonText, { color: '#fff' }]}>Annuler</Text>
+                <Text style={[styles.saveButtonText, { color: '#fff' }]}>{i18n.t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.saveButton} onPress={confirmAddGame}>
-                <Text style={styles.saveButtonText}>Ajouter</Text>
+                <Text style={styles.saveButtonText}>{i18n.t('common.save')}</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
+
+      {/* MODAL CHARGEMENT STEAM */}
+      <Modal visible={isSyncing} transparent={true} animationType="fade">
+        <View style={styles.steamModalOverlay}>
+          <View style={styles.steamModalContent}>
+            <FontAwesome5 name="sync" size={32} color="#66c0f4" style={{ marginBottom: 16 }} />
+            <Text style={styles.steamModalTitle}>Synchronisation Steam</Text>
+            <Text style={styles.steamModalStatus}>{syncStatus}</Text>
+            <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBarFill, { width: `${syncProgress}%` }]} />
+            </View>
+            <Text style={styles.progressText}>{syncProgress}%</Text>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1b1b1b' },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff', padding: 20, paddingTop: 60 },
+  headerContainer: { flexDirection: 'row', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 20 },
+  backButton: { marginRight: 16, padding: 4 },
+  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff' },
   searchBox: { marginHorizontal: 16, marginBottom: 20, backgroundColor: '#202020', borderRadius: 50, borderWidth: 1, borderColor: '#333' },
   searchInput: { color: '#fff', paddingHorizontal: 20, height: 50, fontSize: 16 },
+  
+  // Styles de la section Steam
+  steamSection: { marginHorizontal: 16, marginBottom: 20 },
+  steamButton: { flexDirection: 'row', backgroundColor: '#171a21', borderWidth: 1, borderColor: '#66c0f4', borderRadius: 50, padding: 14, alignItems: 'center', justifyContent: 'center' },
+  steamText: { color: '#fff', fontSize: 15, fontWeight: 'bold', marginLeft: 10 },
+  steamModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' },
+  steamModalContent: { width: '85%', backgroundColor: '#202020', borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#333' },
+  steamModalTitle: { color: '#66c0f4', fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
+  steamModalStatus: { color: '#ccc', fontSize: 14, textAlign: 'center', marginBottom: 20, height: 40 },
+  progressBarContainer: { width: '100%', height: 20, backgroundColor: '#171a21', borderRadius: 10, overflow: 'hidden', marginBottom: 8 },
+  progressBarFill: { height: '100%', backgroundColor: '#66c0f4' },
+  progressText: { color: '#fff', fontWeight: 'bold' },
+
   listContainer: { paddingHorizontal: 16, paddingBottom: 20 },
   card: { flexDirection: 'row', backgroundColor: '#202020', borderRadius: 24, marginBottom: 16, overflow: 'hidden', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
   cover: { width: 80, height: 100 },
@@ -337,7 +466,7 @@ const styles = StyleSheet.create({
   gameTitle: { fontSize: 16, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
   gameYear: { fontSize: 13, color: '#6c7d76', fontWeight: '600' },
   addButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#4CE5AE', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-  addedButton: { backgroundColor: '#333' }, // Style du bouton quand on a déjà le jeu (grisé)
+  addedButton: { backgroundColor: '#333' },
   addButtonText: { color: '#1b1b1b', fontSize: 24, fontWeight: 'bold', lineHeight: 26 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#1b1b1b', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%', borderWidth: 1, borderColor: '#333' },
