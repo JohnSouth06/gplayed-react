@@ -3,9 +3,9 @@ import { Image as ExpoImage } from 'expo-image';
 import { Tabs, useFocusEffect, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import i18n from '../config/i18n';
+import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { getRegionalPrice } from '../config/currency';
+import i18n from '../config/i18n';
 
 export default function LoanedScreen() {
   const router = useRouter();
@@ -191,7 +191,13 @@ export default function LoanedScreen() {
         onPress={() => handlePress(item)}
       >
         {item.image_url ? (
-          <Image source={{ uri: `https://www.g-played.com/${item.image_url}` }} style={[styles.cover, isSelected && styles.coverSelected]} />
+          <ExpoImage
+            source={{ uri: item.image_url.startsWith('http') ? item.image_url : `https://www.g-played.com/${item.image_url}` }}
+            style={[styles.cover, isSelected && styles.coverSelected]}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory-disk"
+          />
         ) : (
           <View style={[styles.cover, styles.placeholderCover]} />
         )}
@@ -309,6 +315,10 @@ export default function LoanedScreen() {
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={<Text style={styles.emptyText}>{i18n.t('loaned.empty_search')}</Text>}
+          initialNumToRender={10}
+          windowSize={5}
+          maxToRenderPerBatch={5}
+          removeClippedSubviews={true}
         />
       )}
 
@@ -369,12 +379,12 @@ const styles = StyleSheet.create({
   modalOptionText: { color: '#ccc', fontSize: 16 },
   modalOptionTextActive: { color: '#4CE5AE', fontWeight: 'bold' },
   listContainer: { paddingHorizontal: 16, paddingBottom: 80 },
-  card: { flexDirection: 'row', backgroundColor: '#202020', borderRadius: 24, marginBottom: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', position: 'relative' },
+  card: { flexDirection: 'row', backgroundColor: '#202020', borderRadius: 24, marginBottom: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', position: 'relative', alignItems: 'stretch'},
   cardSelected: { borderColor: '#dc3545', borderWidth: 2, backgroundColor: 'rgba(220, 53, 69, 0.1)' },
   coverSelected: { opacity: 0.5 },
   checkOverlay: { position: 'absolute', right: 20, top: '40%' },
   returnButton: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.05)' },
-  cover: { display: 'flex', alignItems: 'center', justifyContent: 'center', justifyItems: 'center', flexDirection: 'row-reverse', width: '100', height: '100vh' },
+  cover: { width: 100, minHeight: 140, backgroundColor: '#151515' },
   placeholderCover: { backgroundColor: '#151515' },
   cardInfo: { flex: 1, padding: 12, justifyContent: 'center' },
   gameTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
