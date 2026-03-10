@@ -10,6 +10,7 @@
     "confirm": "Confirmer",
     "delete": "Supprimer",
     "save": "Enregistrer",
+    "send": "Envoyer",
     "close": "Fermer",
     "selected": "sélectionné(s)",
     "all": "Tous",
@@ -23,6 +24,10 @@
     "choose_platform": "Choisir une plateforme",
     "all_platforms": "Toutes les plateformes",
     "other": "Autre",
+    "search_placeholder": "Rechercher un jeu...",
+    "add_game": "Ajouter un jeu",
+    "confirm_platform": "Confirmer la plateforme",
+    "other_platform": "Autre plateforme...",
     "multiplatform": "Multiplateforme",
     "unknown_price": "Prix inconnu",
     "unknown": "Inconnu"
@@ -50,7 +55,11 @@
     "error_empty": "Veuillez remplir tous les champs.",
     "success_msg": "Connexion réussie ! (Token sauvegardé)",
     "error_invalid": "Identifiants incorrects.",
-    "error_network": "Impossible de contacter le serveur."
+    "error_network": "Impossible de contacter le serveur.",
+    "forgot_password": "Mot de passe oublié ?",
+    "reset_title": "Réinitialiser le mot de passe",
+    "reset_sent": "Un email de réinitialisation vous a été envoyé.",
+    "email_required": "Veuillez saisir votre adresse email."
   },
   "home": {
     "tab_physical": "Physique",
@@ -102,9 +111,8 @@
     "empty_search": "Aucun jeu ne correspond à votre recherche.",
     "delete_confirm_text": "Voulez-vous vraiment retirer ces %{count} jeux de votre liste de souhaits ?",
     "acquire_title": "Ajouter à la collection",
-    "acquire_question": "Dans quel format avez-vous obtenu \"%{game}\" ?",
-    "acquire_physical": "Physique",
-    "acquire_digital": "Digital",
+    "acquire_question": "Voulez-vous ajouter ce jeu à votre collection ?",
+    "acquire_yes": "Oui",
     "acquire_success": "Jeu ajouté à votre liste de souhaits !",
     "acquire_error": "Impossible de mettre à jour le jeu."
   },
@@ -118,8 +126,40 @@
     "completed": "Platinés / 100%",
     "collection_value": "Valeur de la collection",
     "completion_rate": "Taux de complétion",
+    "completion_percent": "de jeux terminés",
     "platform_distribution": "Répartition par plateforme",
     "empty_text": "Ajoutez des jeux à votre collection pour voir vos statistiques."
+  },
+  "community": {
+    "title": "Communauté",
+    "empty": "Il n'y a pas encore d'autres membres inscrits.",
+    "member_since": "Membre depuis",
+    "btn_view": "Voir",
+    "btn_following": "Suivi",
+    "btn_follow": "Suivre"
+  },
+  "progression": {
+    "title": "Journal de jeu",
+    "add_btn": "Ajouter un temps de jeu",
+    "current_session": "Session en cours",
+    "btn_start": "Démarrer",
+    "btn_resume": "Reprendre",
+    "btn_pause": "Pause",
+    "btn_stop": "Arrêter & Enregistrer",
+    "timer_hint": "Le chronomètre continue même si vous quittez cette page.",
+    "history_title": "Historique des sessions",
+    "empty_text": "Aucune session enregistrée.",
+    "modal_title": "Enregistrer la session",
+    "label_game": "Jeu",
+    "label_duration": "Durée",
+    "label_notes": "Notes (optionnel)",
+    "placeholder_notes": "Qu'avez-vous accompli ?",
+    "choose_game": "Choisissez un jeu"
+  },
+  "public_collection": {
+    "title": "Collection de",
+    "search": "Rechercher dans sa collection...",
+    "empty": "Ce joueur n'a pas encore ajouté de jeux."
   },
   "profile": {
     "logout_title": "Déconnexion",

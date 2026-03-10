@@ -7,6 +7,7 @@
     "error": "Error",
     "network_error": "Network Error",
     "cancel": "Cancel",
+    "send": "Cancel",
     "confirm": "Confirm",
     "delete": "Delete",
     "save": "Save",
@@ -23,6 +24,10 @@
     "choose_platform": "Choose a platform",
     "all_platforms": "All platforms",
     "other": "Other",
+    "search_placeholder": "Search for a game...",
+    "add_game": "Add a game",
+    "confirm_platform": "Confirm Platform",
+    "other_platform": "Other platform...",
     "multiplatform": "Multiplatform",
     "unknown_price": "Unknown price",
     "unknown": "Unknown"
@@ -50,7 +55,11 @@
     "error_empty": "Please fill in all fields.",
     "success_msg": "Login successful! (Token saved)",
     "error_invalid": "Incorrect credentials.",
-    "error_network": "Unable to contact the server."
+    "error_network": "Unable to contact the server.",
+    "forgot_password": "Forgot password?",
+    "reset_title": "Reset Password",
+    "reset_sent": "A reset email has been sent to you.",
+    "email_required": "Please enter your email address."
   },
   "home": {
     "tab_physical": "Physical",
@@ -94,32 +103,36 @@
     "loaned_to": "To:",
     "loaned_date": "On:"
   },
-  "wishlist": {
-    "title": "My Wishlist",
-    "search_placeholder": "Search in my wishlist...",
-    "empty_text": "Your wishlist is empty.",
-    "search_button": "Search a game",
-    "empty_search": "No games match your search.",
-    "delete_confirm_text": "Are you sure you want to remove these %{count} games from your wishlist?",
-    "acquire_title": "Add to library",
-    "acquire_question": "In what format did you get \"%{game}\"?",
-    "acquire_physical": "Physical",
-    "acquire_digital": "Digital",
-    "acquire_success": "Game added to your wishlist!",
-    "acquire_error": "Unable to update the game."
+"community": {
+    "title": "Community",
+    "empty": "No other members registered yet.",
+    "member_since": "Member since",
+    "btn_view": "View",
+    "btn_following": "Followed",
+    "btn_follow": "Follow"
   },
-  "stats": {
-    "title": "Statistics",
-    "owned_games": "Owned Games",
-    "physical": "Physical",
-    "digital": "Digital",
-    "playing": "Playing",
-    "finished": "Finished",
-    "completed": "Platinum / 100%",
-    "collection_value": "Collection Value",
-    "completion_rate": "Completion Rate",
-    "platform_distribution": "Platform Distribution",
-    "empty_text": "Add games to your library to see your statistics."
+  "progression": {
+    "title": "Game Journal",
+    "add_btn": "Add playtime",
+    "current_session": "Current Session",
+    "btn_start": "Start",
+    "btn_resume": "Resume",
+    "btn_pause": "Pause",
+    "btn_stop": "Stop & Save",
+    "timer_hint": "The timer continues even if you leave this page.",
+    "history_title": "Session history",
+    "empty_text": "No session recorded.",
+    "modal_title": "Save session",
+    "label_game": "Game",
+    "label_duration": "Duration",
+    "label_notes": "Notes (optional)",
+    "placeholder_notes": "What did you achieve?",
+    "choose_game": "Choose a game"
+  },
+  "public_collection": {
+    "title": "Collection of",
+    "search": "Search in player's collection...",
+    "empty": "This player has not added any games yet."
   },
   "profile": {
     "logout_title": "Log Out",
