@@ -3,9 +3,8 @@ import { Tabs, useFocusEffect, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
-import i18n from '../config/i18n';
 import { getRegionalPrice } from '../config/currency';
+import i18n from '../config/i18n';
 
 export default function WishlistScreen() {
   const router = useRouter();
@@ -113,11 +112,10 @@ export default function WishlistScreen() {
   const promptAcquire = (game) => {
     Alert.alert(
       i18n.t('wishlist.acquire_title'),
-      i18n.t('wishlist.acquire_text', { title: game.title }),
+      i18n.t('wishlist.acquire_question', { title: game.title }),
       [
+        { text: i18n.t('wishlist.acquire_yes'), onPress: () => acquireGame(game.id, 'physical') },
         { text: i18n.t('common.cancel'), style: "cancel" },
-        { text: i18n.t('wishlist.physical'), onPress: () => acquireGame(game.id, 'physical') },
-        { text: i18n.t('wishlist.digital'), onPress: () => acquireGame(game.id, 'digital') }
       ]
     );
   };
@@ -225,7 +223,10 @@ export default function WishlistScreen() {
         onPress={() => handlePress(item)}
       >
         {item.image_url ? (
-          <Image source={{ uri: `https://www.g-played.com/${item.image_url}` }} style={[styles.cover, isSelected && styles.coverSelected]} />
+          <Image 
+            source={{ uri: item.image_url.startsWith('http') ? item.image_url : `https://www.g-played.com/${item.image_url}` }} 
+            style={[styles.cover, isSelected && styles.coverSelected]} 
+          />
         ) : (
           <View style={[styles.cover, styles.placeholderCover]} />
         )}
@@ -336,6 +337,10 @@ export default function WishlistScreen() {
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={<Text style={styles.emptyText}>{i18n.t('home.empty_text')}</Text>}
+          initialNumToRender={10}
+          windowSize={5}
+          maxToRenderPerBatch={5}
+          removeClippedSubviews={true}
         />
       )}
 
@@ -413,7 +418,7 @@ const styles = StyleSheet.create({
   coverSelected: { opacity: 0.5 },
   checkOverlay: { position: 'absolute', right: 20, top: '40%' },
   acquireButton: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.05)' },
-  cover: { display: 'flex', alignItems: 'center', justifyContent: 'center', justifyItems: 'center', flexDirection: 'row-reverse', width: '100', height: '100vh' },
+  cover: { width: '90', height: '120' },
   placeholderCover: { backgroundColor: '#151515' },
   cardInfo: { flex: 1, padding: 12, justifyContent: 'center' },
   gameTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginBottom: 4 },

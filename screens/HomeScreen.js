@@ -3,9 +3,9 @@ import { Image as ExpoImage } from 'expo-image';
 import { Tabs, useFocusEffect, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import i18n from '../config/i18n';
+import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { getRegionalPrice } from '../config/currency';
+import i18n from '../config/i18n';
 
 
 export default function HomeScreen() {
@@ -184,6 +184,17 @@ export default function HomeScreen() {
   const renderGameCard = ({ item }) => {
     const isSelected = selectedGames.includes(item.id);
     const statusConfig = getStatusConfig(item.status);
+    
+    let finalImageUrl = null;
+    if (item.image_url) {
+      if (item.image_url.startsWith('http')) {
+        finalImageUrl = item.image_url;
+      } else if (item.image_url.startsWith('//')) {
+        finalImageUrl = `https:${item.image_url}`;
+      } else {
+        finalImageUrl = `https://www.g-played.com/${item.image_url}`;
+      }
+    }
 
     return (
       <TouchableOpacity
@@ -192,8 +203,14 @@ export default function HomeScreen() {
         onLongPress={() => handleLongPress(item.id)}
         onPress={() => handlePress(item)}
       >
-        {item.image_url ? (
-          <Image source={{ uri: `https://www.g-played.com/${item.image_url}` }} style={[styles.cover, isSelected && styles.coverSelected]} />
+        {finalImageUrl ? (
+          <ExpoImage 
+            source={{ uri: finalImageUrl }} 
+            style={styles.cover}
+            contentFit="cover" 
+            cachePolicy="memory-disk" 
+            transition={200} 
+          />
         ) : (
           <View style={[styles.cover, styles.placeholderCover]} />
         )}
@@ -221,6 +238,12 @@ export default function HomeScreen() {
                 <Text style={styles.badgeTextLight}>{item.metacritic_score}</Text>
               </View>
             ) : null}
+            {item.playtime && parseFloat(item.playtime) > 0 ? (
+              <View style={[styles.badge, styles.badgePlaytime]}>
+                <MaterialIcons name="schedule" size={12} color="#fff" />
+                <Text style={styles.badgeTextLight}>{item.playtime}h</Text>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.statusRow}>
@@ -236,7 +259,7 @@ export default function HomeScreen() {
                 style={styles.quickLendButton} 
                 onPress={() => { setGameToLend(item); setLoanedToName(''); setLendModalVisible(true); }}
               >
-                <MaterialIcons name="handshake" size={20} color="#f0ad4e" />
+                <MaterialCommunityIcons name="handshake-outline" size={20} color="#f0ad4e" />
               </TouchableOpacity>
             )}
           </View>
@@ -290,10 +313,10 @@ export default function HomeScreen() {
       {!isSelectionMode && (
         <View style={styles.toggleContainer}>
           <TouchableOpacity style={[styles.toggleButton, activeFormat === 'physical' && styles.toggleButtonActive]} onPress={() => setActiveFormat('physical')}>
-            <Text style={[styles.toggleText, activeFormat === 'physical' && styles.toggleTextActive]}>{i18n.t('home.tab_physical')}</Text>
+            <Text style={[styles.toggleText, activeFormat === 'physical' && styles.toggleTextActive]}><MaterialCommunityIcons name="minidisc" style={[styles.toggleIcons, activeFormat === 'physical' && styles.toggleIconsActive]} /> {i18n.t('home.tab_physical')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.toggleButton, activeFormat === 'digital' && styles.toggleButtonActive]} onPress={() => setActiveFormat('digital')}>
-            <Text style={[styles.toggleText, activeFormat === 'digital' && styles.toggleTextActive]}>{i18n.t('home.tab_digital')}</Text>
+            <Text style={[styles.toggleText, activeFormat === 'digital' && styles.toggleTextActive]}><MaterialCommunityIcons name="cloud-outline" style={[styles.toggleIcons, activeFormat === 'digital' && styles.toggleIconsActive]} /> {i18n.t('home.tab_digital')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -348,6 +371,10 @@ export default function HomeScreen() {
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={<Text style={styles.emptyText}>{i18n.t('home.empty_text')}</Text>}
+        initialNumToRender={10} 
+        windowSize={5}
+        maxToRenderPerBatch={5} 
+        removeClippedSubviews={true}
       />
 
       {isSelectionMode ? (
@@ -433,6 +460,8 @@ const styles = StyleSheet.create({
   toggleButton: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 50 },
   toggleButtonActive: { backgroundColor: '#4CE5AE' },
   toggleText: { color: '#6c7d76', fontWeight: 'bold' },
+  toggleIcons: { color: '#6c7d76', fontSize: 18 },
+  toggleIconsActive: { color: '#111', fontSize: 18 },
   toggleTextActive: { color: '#111' },
   localSearchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#202020', borderRadius: 12, borderWidth: 1, borderColor: '#333', marginHorizontal: 20, marginBottom: 16, paddingHorizontal: 12, height: 44 },
   localSearchIcon: { marginRight: 8 },
@@ -451,7 +480,7 @@ const styles = StyleSheet.create({
   cardSelected: { borderColor: '#dc3545', borderWidth: 2, backgroundColor: 'rgba(220, 53, 69, 0.1)' },
   coverSelected: { opacity: 0.5 },
   checkOverlay: { position: 'absolute', right: 20, top: '40%' },
-  cover: { display: 'flex', alignItems: 'center', justifyContent: 'center', justifyItems: 'center', flexDirection: 'row-reverse', width: '100', height: '100vh' },
+  cover: { width: '90', height: '120' },
   placeholderCover: { backgroundColor: '#151515' },
   cardInfo: { flex: 1, padding: 12, justifyContent: 'center' },
   gameTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
@@ -459,6 +488,7 @@ const styles = StyleSheet.create({
   badge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, gap: 4 },
   badgePlatform: { backgroundColor: '#fff' },
   badgePrice: { backgroundColor: '#2e6c56' },
+  badgePlaytime: { backgroundColor: '#8e44ad' },
   badgeMeta: { backgroundColor: '#ed9c01' },
   badgeTextPlatform: { fontSize: 11, fontWeight: 'bold', color: '#111' },
   badgeTextLight: { fontSize: 11, fontWeight: 'bold', color: '#fff' },
@@ -477,8 +507,8 @@ const styles = StyleSheet.create({
   lendInput: { backgroundColor: '#202020', color: '#fff', borderRadius: 12, padding: 16, fontSize: 16, borderWidth: 1, borderColor: '#333', marginBottom: 24 },
   lendModalActions: { flexDirection: 'row', gap: 12 },
   lendModalBtn: { flex: 1, padding: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  lendModalBtnCancel: { backgroundColor: 'transparent', borderColor: '#6c7d76' },
-  lendModalBtnConfirm: { backgroundColor: '#f0ad4e', borderColor: '#f0ad4e' },
+  lendModalBtnCancel: { backgroundColor: 'transparent', borderColor: '#6c7d76', borderRadius: 35 },
+  lendModalBtnConfirm: { backgroundColor: '#f0ad4e', borderColor: '#f0ad4e', borderRadius: 35 },
   lendModalBtnTextCancel: { color: '#ccc', fontWeight: 'bold', fontSize: 16 },
   lendModalBtnTextConfirm: { color: '#111', fontWeight: 'bold', fontSize: 16 }
 });
