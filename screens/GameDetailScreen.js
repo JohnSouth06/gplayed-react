@@ -1,8 +1,9 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import { Image as ExpoImage } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import i18n from '../config/i18n';
 
 export default function GameDetailScreen() {
@@ -26,6 +27,7 @@ export default function GameDetailScreen() {
   const [metacritic, setMetacritic] = useState(game?.metacritic_score ? game.metacritic_score.toString() : '');
   const [genres, setGenres] = useState(game?.genres || '');
   const [price, setPrice] = useState(game?.estimated_price ? game.estimated_price.toString() : '');
+  const [timeMain, setTimeMain] = useState(game?.playtime ? game.playtime.toString() : '');
   const [comment, setComment] = useState(game?.comment || '');
   
   const [isSaving, setIsSaving] = useState(false);
@@ -70,7 +72,7 @@ export default function GameDetailScreen() {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: game.id, title, platform: finalPlatform, status, user_rating: rating, metacritic_score: metacritic, genres, estimated_price: price, comment
+          id: game.id, title, platform: finalPlatform, status, user_rating: rating, metacritic_score: metacritic, genres, estimated_price: price, comment, playtime: timeMain
         })
       });
       const data = await response.json();
@@ -102,6 +104,10 @@ export default function GameDetailScreen() {
   } else if (selectedPlatforms.length === 1) {
     displayPlatformText = selectedPlatforms[0];
   }
+  
+  const finalImageUrl = game.image_url 
+      ? (game.image_url.startsWith('http') ? game.image_url : `https://www.g-played.com/${game.image_url}`)
+      : null;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -109,8 +115,14 @@ export default function GameDetailScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <MaterialIcons name="arrow-back-ios" size={22} color="#fff" style={{ marginLeft: 6 }} />
         </TouchableOpacity>
-        {game.image_url ? (
-          <Image source={{ uri: `https://www.g-played.com/${game.image_url}` }} style={styles.coverImage} />
+        
+        {finalImageUrl ? (
+          <ExpoImage 
+            source={{ uri: finalImageUrl }} 
+            style={styles.coverImage} 
+            contentFit="cover" 
+            cachePolicy="memory-disk" 
+          />
         ) : (
           <View style={[styles.coverImage, { backgroundColor: '#202020' }]} />
         )}
@@ -156,8 +168,16 @@ export default function GameDetailScreen() {
         <Text style={styles.label}>{i18n.t('gamedetail.label_genres')}</Text>
         <TextInput style={styles.input} value={genres} onChangeText={setGenres} />
 
-        <Text style={styles.label}>{i18n.t('gamedetail.label_price')}</Text>
-        <TextInput style={styles.input} keyboardType="numeric" value={price} onChangeText={setPrice} />
+        <View style={styles.row}>
+          <View style={styles.col}>
+            <Text style={styles.label}>{i18n.t('gamedetail.label_price')}</Text>
+            <TextInput style={styles.input} keyboardType="numeric" value={price} onChangeText={setPrice} />
+          </View>
+          <View style={styles.col}>
+            <Text style={styles.label}>Temps de jeu (h)</Text>
+            <TextInput style={styles.input} keyboardType="numeric" value={timeMain} onChangeText={setTimeMain} />
+          </View>
+        </View>
 
         <Text style={styles.label}>{i18n.t('gamedetail.label_comment')}</Text>
         <TextInput
