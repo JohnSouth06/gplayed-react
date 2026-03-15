@@ -337,10 +337,6 @@ export default function WishlistScreen() {
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={<Text style={styles.emptyText}>{i18n.t('home.empty_text')}</Text>}
-          initialNumToRender={10}
-          windowSize={5}
-          maxToRenderPerBatch={5}
-          removeClippedSubviews={true}
         />
       )}
 
@@ -418,7 +414,7 @@ const styles = StyleSheet.create({
   coverSelected: { opacity: 0.5 },
   checkOverlay: { position: 'absolute', right: 20, top: '40%' },
   acquireButton: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.05)' },
-  cover: { width: '90', height: '120' },
+  cover: { display: 'flex', alignItems: 'center', justifyContent: 'center', justifyItems: 'center', flexDirection: 'row-reverse', width: '100', height: '100vh' },
   placeholderCover: { backgroundColor: '#151515' },
   cardInfo: { flex: 1, padding: 12, justifyContent: 'center' },
   gameTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginBottom: 4 },

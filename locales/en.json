@@ -103,36 +103,32 @@
     "loaned_to": "To:",
     "loaned_date": "On:"
   },
-"community": {
-    "title": "Community",
-    "empty": "No other members registered yet.",
-    "member_since": "Member since",
-    "btn_view": "View",
-    "btn_following": "Followed",
-    "btn_follow": "Follow"
+  "wishlist": {
+    "title": "My Wishlist",
+    "search_placeholder": "Search in my wishlist...",
+    "empty_text": "Your wishlist is empty.",
+    "search_button": "Search a game",
+    "empty_search": "No games match your search.",
+    "delete_confirm_text": "Are you sure you want to remove these %{count} games from your wishlist?",
+    "acquire_title": "Add to library",
+    "acquire_question": "Do you want to add this game to your collection?",
+    "acquire_yes": "Yes",
+    "acquire_success": "Game added to your wishlist!",
+    "acquire_error": "Unable to update the game."
   },
-  "progression": {
-    "title": "Game Journal",
-    "add_btn": "Add playtime",
-    "current_session": "Current Session",
-    "btn_start": "Start",
-    "btn_resume": "Resume",
-    "btn_pause": "Pause",
-    "btn_stop": "Stop & Save",
-    "timer_hint": "The timer continues even if you leave this page.",
-    "history_title": "Session history",
-    "empty_text": "No session recorded.",
-    "modal_title": "Save session",
-    "label_game": "Game",
-    "label_duration": "Duration",
-    "label_notes": "Notes (optional)",
-    "placeholder_notes": "What did you achieve?",
-    "choose_game": "Choose a game"
-  },
-  "public_collection": {
-    "title": "Collection of",
-    "search": "Search in player's collection...",
-    "empty": "This player has not added any games yet."
+  "stats": {
+    "title": "Statistics",
+    "owned_games": "Owned Games",
+    "physical": "Physical",
+    "digital": "Digital",
+    "playing": "Playing",
+    "finished": "Finished",
+    "completed": "Platinum / 100%",
+    "collection_value": "Collection Value",
+    "completion_rate": "Completion Rate",
+    "completion_percent": "of completed games",
+    "platform_distribution": "Platform Distribution",
+    "empty_text": "Add games to your library to see your statistics."
   },
   "profile": {
     "logout_title": "Log Out",

@@ -206,7 +206,7 @@ export default function HomeScreen() {
         {finalImageUrl ? (
           <ExpoImage 
             source={{ uri: finalImageUrl }} 
-            style={styles.cover}
+            style={[styles.cover, isSelected && styles.coverSelected]} 
             contentFit="cover" 
             cachePolicy="memory-disk" 
             transition={200} 
@@ -371,10 +371,6 @@ export default function HomeScreen() {
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={<Text style={styles.emptyText}>{i18n.t('home.empty_text')}</Text>}
-        initialNumToRender={10} 
-        windowSize={5}
-        maxToRenderPerBatch={5} 
-        removeClippedSubviews={true}
       />
 
       {isSelectionMode ? (
@@ -480,7 +476,7 @@ const styles = StyleSheet.create({
   cardSelected: { borderColor: '#dc3545', borderWidth: 2, backgroundColor: 'rgba(220, 53, 69, 0.1)' },
   coverSelected: { opacity: 0.5 },
   checkOverlay: { position: 'absolute', right: 20, top: '40%' },
-  cover: { width: '90', height: '120' },
+  cover: { display: 'flex', alignItems: 'center', justifyContent: 'center', justifyItems: 'center', flexDirection: 'row-reverse', width: '100', height: '100vh' },
   placeholderCover: { backgroundColor: '#151515' },
   cardInfo: { flex: 1, padding: 12, justifyContent: 'center' },
   gameTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginBottom: 4 },

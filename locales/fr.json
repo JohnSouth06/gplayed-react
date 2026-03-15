@@ -130,37 +130,6 @@
     "platform_distribution": "Répartition par plateforme",
     "empty_text": "Ajoutez des jeux à votre collection pour voir vos statistiques."
   },
-  "community": {
-    "title": "Communauté",
-    "empty": "Il n'y a pas encore d'autres membres inscrits.",
-    "member_since": "Membre depuis",
-    "btn_view": "Voir",
-    "btn_following": "Suivi",
-    "btn_follow": "Suivre"
-  },
-  "progression": {
-    "title": "Journal de jeu",
-    "add_btn": "Ajouter un temps de jeu",
-    "current_session": "Session en cours",
-    "btn_start": "Démarrer",
-    "btn_resume": "Reprendre",
-    "btn_pause": "Pause",
-    "btn_stop": "Arrêter & Enregistrer",
-    "timer_hint": "Le chronomètre continue même si vous quittez cette page.",
-    "history_title": "Historique des sessions",
-    "empty_text": "Aucune session enregistrée.",
-    "modal_title": "Enregistrer la session",
-    "label_game": "Jeu",
-    "label_duration": "Durée",
-    "label_notes": "Notes (optionnel)",
-    "placeholder_notes": "Qu'avez-vous accompli ?",
-    "choose_game": "Choisissez un jeu"
-  },
-  "public_collection": {
-    "title": "Collection de",
-    "search": "Rechercher dans sa collection...",
-    "empty": "Ce joueur n'a pas encore ajouté de jeux."
-  },
   "profile": {
     "logout_title": "Déconnexion",
     "logout_question": "Voulez-vous vraiment vous déconnecter ?",

@@ -230,11 +230,11 @@ export default function LoginScreen() {
       </View>
 
       <TouchableOpacity style={[styles.button, styles.googleButton]} onPress={() => handleSocialLogin('google')} disabled={isLoading}>
-        <Text style={styles.googleButtonText}><FontAwesome5 name="google" style={[styles.btnIconGoogle, styles.btnIconGoogleActive]} />  Se connecter avec Google</Text>
+        <Text style={styles.googleButtonText}><FontAwesome5 name="google" style={[styles.btnIconGoogle, styles.btnIconGoogleActive]} />  Continuer avec Google</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={[styles.button, styles.discordButton]} onPress={() => handleSocialLogin('discord')} disabled={isLoading}>
-        <Text style={styles.discordButtonText}><FontAwesome6 name="discord" style={[styles.btnIconDiscord, styles.btnIconDiscordActive]} />  Se connecter avec Discord</Text>
+        <Text style={styles.discordButtonText}><FontAwesome6 name="discord" style={[styles.btnIconDiscord, styles.btnIconDiscordActive]} />  Continuer avec Discord</Text>
       </TouchableOpacity>
 
     </View>

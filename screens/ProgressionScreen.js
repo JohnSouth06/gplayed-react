@@ -3,9 +3,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-// Ajout de l'import i18n
-import i18n from '../config/i18n';
+import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function ProgressionScreen() {
   const [history, setHistory] = useState([]);
@@ -16,7 +14,7 @@ export default function ProgressionScreen() {
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
 
-  // --- ÉTATS DE LA MODALE ---
+  // --- ÉTATS DE LA MODALE D'AJOUT ---
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isGamePickerVisible, setIsGamePickerVisible] = useState(false);
   const [selectedGame, setSelectedGame] = useState(null);
@@ -61,6 +59,7 @@ export default function ProgressionScreen() {
     }
   };
 
+  // --- GESTION DU CHRONOMÈTRE ---
   const formatTime = (totalSeconds) => {
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -71,6 +70,7 @@ export default function ProgressionScreen() {
   const handleStopTimer = () => {
     setIsTimerRunning(false);
     if (timerSeconds > 60) {
+      // Pré-remplir la modale avec le temps écoulé
       const h = Math.floor(timerSeconds / 3600);
       const m = Math.floor((timerSeconds % 3600) / 60);
       setDurationHours(h.toString());
@@ -82,23 +82,24 @@ export default function ProgressionScreen() {
     }
   };
 
+  // --- SOUMISSION DE LA SESSION ---
   const handleSubmitProgress = async () => {
     if (!selectedGame) {
-      Alert.alert(i18n.t('common.error'), i18n.t('progression.error_no_game'));
+      Alert.alert('Erreur', 'Veuillez sélectionner un jeu.');
       return;
     }
     const h = parseInt(durationHours) || 0;
     const m = parseInt(durationMinutes) || 0;
-
+    
     if (h === 0 && m === 0) {
-      Alert.alert(i18n.t('common.error'), i18n.t('progression.error_duration'));
+      Alert.alert('Erreur', 'Veuillez entrer une durée valide.');
       return;
     }
 
     setIsSubmitting(true);
     try {
       const token = await SecureStore.getItemAsync('userToken');
-      const logDate = new Date().toISOString().split('T')[0];
+      const logDate = new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
 
       const response = await fetch(`${API_BASE}?action=api_add_progress`, {
         method: 'POST',
@@ -119,28 +120,26 @@ export default function ProgressionScreen() {
         setDurationMinutes('');
         setNotes('');
         setSelectedGame(null);
-        fetchProgressData();
-        Alert.alert(i18n.t('common.success'), i18n.t('progression.success_save'));
+        fetchProgressData(); // Rafraîchit la liste
+        Alert.alert('Succès', 'Session enregistrée et temps de jeu mis à jour !');
       } else {
-        Alert.alert(i18n.t('common.error'), data.message);
+        Alert.alert('Erreur', data.message || 'Impossible de sauvegarder la session.');
       }
     } catch (error) {
-      Alert.alert(i18n.t('common.error'), i18n.t('common.network_error'));
+      Alert.alert('Erreur', 'Erreur réseau.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDeleteProgress = (id) => {
-    Alert.alert(i18n.t('common.delete'), i18n.t('progression.confirm_delete'), [
-      { text: i18n.t('common.cancel'), style: "cancel" },
-      {
-        text: i18n.t('common.delete'), style: "destructive", onPress: async () => {
+    Alert.alert("Supprimer", "Voulez-vous supprimer cette session ?", [
+      { text: "Annuler", style: "cancel" },
+      { text: "Supprimer", style: "destructive", onPress: async () => {
           const token = await SecureStore.getItemAsync('userToken');
           await fetch(`${API_BASE}?action=api_delete_progress&id=${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
           fetchProgressData();
-        }
-      }
+      }}
     ]);
   };
 
@@ -148,6 +147,7 @@ export default function ProgressionScreen() {
     const formattedDate = new Date(item.log_date).toLocaleDateString();
     const hours = Math.floor(item.duration_minutes / 60);
     const mins = item.duration_minutes % 60;
+    
     let imageUrl = item.game_image?.startsWith('http') ? item.game_image : `https://www.g-played.com/${item.game_image}`;
 
     return (
@@ -175,19 +175,21 @@ export default function ProgressionScreen() {
 
   return (
     <View style={styles.container}>
+      {/* EN-TÊTE */}
       <View style={styles.header}>
-        <Text style={styles.pageTitle}>{i18n.t('progression.title')}</Text>
-        <TouchableOpacity style={styles.addBtnHeader} onPress={() => { setIsGamePickerVisible(false); setIsModalVisible(true); }}>
+        <Text style={styles.pageTitle}>Progression</Text>
+        <TouchableOpacity style={styles.addBtnHeader} onPress={() => setIsModalVisible(true)}>
           <MaterialIcons name="add" size={24} color="#111" />
         </TouchableOpacity>
       </View>
 
+      {/* CHRONOMÈTRE */}
       <View style={styles.timerCard}>
-        <Text style={styles.timerLabel}>{i18n.t('progression.current_session')}</Text>
+        <Text style={styles.timerLabel}>SESSION EN COURS</Text>
         <Text style={styles.timerDisplay}>{formatTime(timerSeconds)}</Text>
         <View style={styles.timerControls}>
-          <TouchableOpacity
-            style={[styles.timerBtn, isTimerRunning ? styles.timerBtnPause : styles.timerBtnStart]}
+          <TouchableOpacity 
+            style={[styles.timerBtn, isTimerRunning ? styles.timerBtnPause : styles.timerBtnStart]} 
             onPress={() => setIsTimerRunning(!isTimerRunning)}
           >
             <MaterialIcons name={isTimerRunning ? "pause" : "play-arrow"} size={32} color={isTimerRunning ? "#f0ad4e" : "#111"} />
@@ -200,79 +202,93 @@ export default function ProgressionScreen() {
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>{i18n.t('progression.history_title')}</Text>
+      {/* HISTORIQUE */}
+      <Text style={styles.sectionTitle}>Historique des sessions</Text>
       <FlatList
         data={history}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderHistoryItem}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<Text style={styles.emptyText}>{i18n.t('progression.empty_text')}</Text>}
+        ListEmptyComponent={<Text style={styles.emptyText}>Aucune session enregistrée.</Text>}
       />
 
-      {/* MODALE UNIQUE (Correction iOS & Traductions) */}
-      <Modal 
-        visible={isModalVisible} 
-        transparent 
-        animationType="slide"
-        onRequestClose={() => isGamePickerVisible ? setIsGamePickerVisible(false) : setIsModalVisible(false)}
-      >
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={[styles.modalContent, isGamePickerVisible && { height: '70%' }]}>
-            {isGamePickerVisible ? (
-              <>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
-                  <TouchableOpacity onPress={() => setIsGamePickerVisible(false)}>
-                    <MaterialIcons name="arrow-back" size={24} color="#4CE5AE" />
-                  </TouchableOpacity>
-                  <Text style={[styles.modalTitle, { flex: 1, marginBottom: 0 }]}>{i18n.t('progression.choose_game')}</Text>
-                </View>
-                <FlatList
-                  data={selectableGames}
-                  keyExtractor={item => item.id.toString()}
-                  showsVerticalScrollIndicator={false}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity style={styles.pickerOption} onPress={() => { setSelectedGame(item); setIsGamePickerVisible(false); }}>
-                      <Text style={styles.pickerOptionText}>{item.title}</Text>
-                    </TouchableOpacity>
-                  )}
-                />
-              </>
-            ) : (
-              <>
-                <Text style={styles.modalTitle}>{i18n.t('progression.modal_title')}</Text>
-                <Text style={styles.label}>{i18n.t('progression.label_game')}</Text>
-                <TouchableOpacity style={styles.gameSelectBtn} onPress={() => setIsGamePickerVisible(true)}>
-                  <Text style={[styles.gameSelectText, !selectedGame && { color: '#6c7d76' }]}>
-                    {selectedGame ? selectedGame.title : i18n.t('progression.choose_game')}
-                  </Text>
-                  <MaterialIcons name="arrow-drop-down" size={24} color="#6c7d76" />
-                </TouchableOpacity>
+      {/* MODALE D'AJOUT MANUEL */}
+      <Modal visible={isModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Enregistrer une session</Text>
 
-                <Text style={styles.label}>{i18n.t('progression.label_duration')}</Text>
-                <View style={styles.durationRow}>
-                  <TextInput style={styles.durationInput} placeholder="0" placeholderTextColor="#6c7d76" keyboardType="numeric" value={durationHours} onChangeText={setDurationHours} />
-                  <Text style={styles.durationUnit}>h</Text>
-                  <TextInput style={styles.durationInput} placeholder="0" placeholderTextColor="#6c7d76" keyboardType="numeric" value={durationMinutes} onChangeText={setDurationMinutes} maxLength={2} />
-                  <Text style={styles.durationUnit}>m</Text>
-                </View>
+            <Text style={styles.label}>Jeu</Text>
+            <TouchableOpacity style={styles.gameSelectBtn} onPress={() => setIsGamePickerVisible(true)}>
+              <Text style={[styles.gameSelectText, !selectedGame && {color: '#6c7d76'}]}>
+                {selectedGame ? selectedGame.title : "Sélectionner un jeu..."}
+              </Text>
+              <MaterialIcons name="arrow-drop-down" size={24} color="#6c7d76" />
+            </TouchableOpacity>
 
-                <Text style={styles.label}>{i18n.t('progression.label_notes')}</Text>
-                <TextInput style={[styles.input, styles.textArea]} placeholder={i18n.t('progression.placeholder_notes')} placeholderTextColor="#6c7d76" multiline value={notes} onChangeText={setNotes} />
+            <Text style={styles.label}>Durée</Text>
+            <View style={styles.durationRow}>
+              <TextInput style={styles.durationInput} placeholder="0" placeholderTextColor="#6c7d76" keyboardType="numeric" value={durationHours} onChangeText={setDurationHours} />
+              <Text style={styles.durationUnit}>h</Text>
+              <TextInput style={styles.durationInput} placeholder="0" placeholderTextColor="#6c7d76" keyboardType="numeric" value={durationMinutes} onChangeText={setDurationMinutes} maxLength={2} />
+              <Text style={styles.durationUnit}>m</Text>
+            </View>
 
-                <View style={styles.modalActions}>
-                  <TouchableOpacity style={[styles.actionBtn, styles.cancelBtn]} onPress={() => setIsModalVisible(false)}>
-                    <Text style={styles.cancelBtnText}>{i18n.t('common.cancel')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.actionBtn, styles.saveBtn]} onPress={handleSubmitProgress} disabled={isSubmitting}>
-                    {isSubmitting ? <ActivityIndicator color="#111" /> : <Text style={styles.saveBtnText}>{i18n.t('common.save')}</Text>}
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
+            <Text style={styles.label}>Notes (optionnel)</Text>
+            <TextInput style={[styles.input, styles.textArea]} placeholder="Qu'avez-vous accompli ?" placeholderTextColor="#6c7d76" multiline value={notes} onChangeText={setNotes} />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={[styles.actionBtn, styles.cancelBtn]} onPress={() => setIsModalVisible(false)}>
+                <Text style={styles.cancelBtnText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.actionBtn, styles.saveBtn]} onPress={handleSubmitProgress} disabled={isSubmitting}>
+                {isSubmitting ? <ActivityIndicator color="#111" /> : <Text style={styles.saveBtnText}>Sauvegarder</Text>}
+              </TouchableOpacity>
+            </View>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
+
+      {/* SOUS-MODALE : SÉLECTEUR DE JEU */}
+      <Modal 
+        visible={isGamePickerVisible} 
+        transparent 
+        animationType="fade"
+        onRequestClose={() => setIsGamePickerVisible(false)} // Gère le bouton "Retour" sur Android
+      >
+        {/* On utilise un TouchableOpacity comme overlay pour détecter le clic à l'extérieur */}
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setIsGamePickerVisible(false)}
+        >
+          {/* On utilise une View sans action pour ne pas fermer quand on clique sur le contenu */}
+          <TouchableOpacity activeOpacity={1} style={[styles.modalContent, { height: '70%' }]}>
+            <Text style={styles.modalTitle}>Choisissez un jeu</Text>
+            
+            <FlatList
+              data={selectableGames}
+              keyExtractor={item => item.id.toString()}
+              showsVerticalScrollIndicator={false}
+              renderItem={({item}) => (
+                <TouchableOpacity 
+                  style={styles.pickerOption} 
+                  onPress={() => { 
+                    setSelectedGame(item); 
+                    setIsGamePickerVisible(false); 
+                  }}
+                >
+                  <Text style={styles.pickerOptionText}>{item.title}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            
+            {/* Le bouton "Fermer" a été supprimé ici */}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
     </View>
   );
 }
@@ -283,6 +299,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 20 },
   pageTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff' },
   addBtnHeader: { backgroundColor: '#4CE5AE', width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  
   timerCard: { backgroundColor: '#202020', marginHorizontal: 20, borderRadius: 24, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#333', marginBottom: 24 },
   timerLabel: { color: '#6c7d76', fontSize: 12, fontWeight: 'bold', letterSpacing: 1, marginBottom: 8 },
   timerDisplay: { fontSize: 48, fontWeight: '300', color: '#fff', fontVariant: ['tabular-nums'] },
@@ -291,6 +308,7 @@ const styles = StyleSheet.create({
   timerBtnStart: { backgroundColor: '#4CE5AE' },
   timerBtnPause: { backgroundColor: 'rgba(240, 173, 78, 0.2)', borderWidth: 2, borderColor: '#f0ad4e' },
   timerBtnStop: { backgroundColor: '#dc3545', width: 48, height: 48, borderRadius: 24 },
+
   sectionTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold', marginHorizontal: 20, marginBottom: 16 },
   listContainer: { paddingHorizontal: 20, paddingBottom: 40 },
   historyCard: { flexDirection: 'row', backgroundColor: '#202020', borderRadius: 16, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#333', alignItems: 'center' },
@@ -303,23 +321,29 @@ const styles = StyleSheet.create({
   historyDate: { color: '#6c7d76', fontSize: 12 },
   historyNotes: { color: '#aaa', fontSize: 13, fontStyle: 'italic' },
   deleteBtn: { padding: 8 },
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#1b1b1b', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, borderWidth: 1, borderColor: '#333' },
   modalTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginBottom: 24, textAlign: 'center' },
   label: { color: '#6c7d76', fontSize: 13, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 8, marginTop: 16 },
+  
   gameSelectBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#202020', borderWidth: 1, borderColor: '#333', borderRadius: 12, padding: 16 },
   gameSelectText: { color: '#fff', fontSize: 15, flex: 1 },
+  
   durationRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   durationInput: { flex: 1, backgroundColor: '#202020', color: '#fff', borderRadius: 12, padding: 16, fontSize: 18, borderWidth: 1, borderColor: '#333', textAlign: 'center' },
   durationUnit: { color: '#6c7d76', fontSize: 18, fontWeight: 'bold' },
+  
   input: { backgroundColor: '#202020', color: '#fff', borderRadius: 12, padding: 16, fontSize: 15, borderWidth: 1, borderColor: '#333' },
   textArea: { height: 100, textAlignVertical: 'top' },
+  
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 24 },
   actionBtn: { flex: 1, padding: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 35 },
   cancelBtn: { backgroundColor: 'transparent', borderColor: '#6c7d76', borderRadius: 35 },
   saveBtn: { backgroundColor: '#4CE5AE', borderColor: '#4CE5AE', borderRadius: 35 },
   cancelBtnText: { color: '#ccc', fontWeight: 'bold', fontSize: 16 },
   saveBtnText: { color: '#111', fontWeight: 'bold', fontSize: 16 },
+
   pickerOption: { paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#333' },
   pickerOptionText: { color: '#fff', fontSize: 16 }
 });

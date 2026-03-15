@@ -1,12 +1,14 @@
-import { MaterialIcons } from '@expo/vector-icons';
+import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import * as Sharing from 'expo-sharing';
+import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import i18n from '../config/i18n';
 
 export default function ProfileScreen() {
@@ -20,6 +22,11 @@ export default function ProfileScreen() {
   const [password, setPassword] = useState('');
   const [language, setLanguage] = useState('fr');
   const [localAvatar, setLocalAvatar] = useState(null);
+
+  // États Steam
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('');
+  const [syncProgress, setSyncProgress] = useState(0);
 
   // URL API
   const API_BASE = 'https://www.g-played.com/api/index.php';
@@ -58,14 +65,14 @@ export default function ProfileScreen() {
     setIsLoading(true);
     try {
       const token = await SecureStore.getItemAsync('userToken');
-
+      
       // On utilise FormData car on envoie potentiellement un fichier image
       const formData = new FormData();
       formData.append('username', username);
       formData.append('email', email);
       formData.append('language', language);
       if (password) formData.append('new_password', password);
-
+      
       if (localAvatar) {
         const filename = localAvatar.split('/').pop();
         const match = /\.(\w+)$/.exec(filename);
@@ -106,7 +113,7 @@ export default function ProfileScreen() {
       const response = await fetch(`${API_BASE}?action=api_export_json`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-
+      
       // On lit la réponse en texte brut d'abord pour éviter le crash 
       // si PHP renvoie une erreur au lieu d'un JSON
       const responseText = await response.text();
@@ -118,11 +125,11 @@ export default function ProfileScreen() {
         Alert.alert('Erreur serveur', 'Le fichier généré par le serveur est invalide.');
         return;
       }
-
+      
       // Création du fichier local
       const fileUri = FileSystem.documentDirectory + `gplayed_collection_${new Date().toISOString().split('T')[0]}.json`;
       await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(data, null, 2), { encoding: 'utf8' });
-
+      
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(fileUri, {
           mimeType: 'application/json',
@@ -144,16 +151,16 @@ export default function ProfileScreen() {
       if (!result.canceled) {
         setIsLoading(true);
         const token = await SecureStore.getItemAsync('userToken');
-
+        
         const fileUri = result.assets[0].uri;
         const fileContent = await FileSystem.readAsStringAsync(fileUri, { encoding: 'utf8' });
-
+        
         const response = await fetch(`${API_BASE}?action=api_import_json`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
           body: fileContent
         });
-
+        
         const data = await response.json();
         Alert.alert('Importation', data.message || `${data.count} jeux importés !`);
       }
@@ -166,15 +173,14 @@ export default function ProfileScreen() {
   };
 
   // --- PARTAGE ---
-  const handleShare = async () => {
-    if (!user || !user.username) return;
+
+  const handleShareProfile = async () => {
     try {
-      await Share.share({
-        message: `Découvre ma collection de jeux sur G-Played ! https://www.g-played.com/share?user=${user.username}`,
-        url: `https://www.g-played.com/share?user=${user.username}`,
+      const result = await Share.share({
+        message: `Découvrez ma collection de jeux vidéo sur G-Played ! https://www.g-played.com/index.php?action=share&id=${user.id}`,
       });
     } catch (error) {
-      Alert.alert(i18n.t('common.error'), 'Impossible de partager la collection.');
+      console.error(error);
     }
   };
 
@@ -186,16 +192,16 @@ export default function ProfileScreen() {
       "ATTENTION : Cette action est irréversible. Toute votre collection sera effacée.",
       [
         { text: i18n.t('common.cancel'), style: "cancel" },
-        {
-          text: "Supprimer définitivement",
+        { 
+          text: "Supprimer définitivement", 
           style: "destructive",
           onPress: async () => {
             const token = await SecureStore.getItemAsync('userToken');
-            await fetch(`${API_BASE}?action=api_delete_account`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
+            await fetch(`${API_BASE}?action=api_delete_account`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }});
             await SecureStore.deleteItemAsync('userToken');
             await SecureStore.deleteItemAsync('userData');
             router.replace('/');
-          }
+          } 
         }
       ]
     );
@@ -204,14 +210,47 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     Alert.alert(i18n.t('profile.logout_title'), i18n.t('profile.logout_question'), [
       { text: i18n.t('common.cancel'), style: "cancel" },
-      {
-        text: i18n.t('profile.logout_button'), style: "destructive", onPress: async () => {
+      { text: i18n.t('profile.logout_button'), style: "destructive", onPress: async () => {
           await SecureStore.deleteItemAsync('userToken');
           await SecureStore.deleteItemAsync('userData');
           router.replace('/');
-        }
+        } 
       }
     ]);
+  };
+
+  // --- STEAM (Identique à la version précédente) ---
+  const handleSteamAuth = async () => {
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      const returnUrl = Linking.createURL('steam-callback');
+      const authUrl = `${API_BASE}?action=api_steam_login&token=${token}&redirect=${encodeURIComponent(returnUrl)}`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl);
+      if (result.type === 'success') startSteamSync(token);
+    } catch (error) { Alert.alert('Erreur', 'Impossible de joindre Steam.'); }
+  };
+
+  const startSteamSync = async (token) => {
+    setIsSyncing(true); setSyncProgress(0); setSyncStatus('Récupération...');
+    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+    try {
+      const listRes = await fetch(`${API_BASE}?action=api_steam_games`, { headers });
+      const listData = await listRes.json();
+      if (!listData.success) throw new Error(listData.error);
+      const games = listData.games; const total = games.length;
+      if (total === 0) { setSyncStatus('À jour !'); setSyncProgress(100); setTimeout(() => setIsSyncing(false), 2000); return; }
+
+      let processed = 0;
+      for (const game of games) {
+        setSyncStatus(`Importation: ${game.name}`);
+        await fetch(`${API_BASE}?action=api_steam_import_single`, { method: 'POST', headers, body: JSON.stringify(game) });
+        processed++; setSyncProgress(Math.round((processed / total) * 100));
+      }
+      setSyncStatus('Terminé !'); await fetch(`${API_BASE}?action=api_steam_complete`, { headers });
+      setTimeout(() => setIsSyncing(false), 2000);
+    } catch (e) {
+      setSyncStatus("Erreur de synchronisation."); setTimeout(() => setIsSyncing(false), 3000);
+    }
   };
 
   if (!user) return <View style={styles.container} />;
@@ -230,31 +269,31 @@ export default function ProfileScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <MaterialIcons name="arrow-back-ios" size={24} color="#fff" />
         </TouchableOpacity>
-
+        
         <TouchableOpacity onPress={pickAvatar} style={styles.avatarContainer}>
           <Image source={{ uri: displayAvatar }} style={styles.avatar} />
           <View style={styles.avatarEditBadge}>
             <MaterialIcons name="edit" size={14} color="#111" />
           </View>
         </TouchableOpacity>
-
+        
         <Text style={styles.username}>{user.username}</Text>
         <Text style={styles.email}>{user.email}</Text>
         <Text style={styles.memberSince}>Membre depuis le {memberSince}</Text>
       </View>
 
       <ScrollView style={styles.scrollContent} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-
+        
         {/* SECTION 1 : Paramètres du compte */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Paramètres du profil</Text>
-
+          
           <Text style={styles.label}>Nom d'utilisateur</Text>
           <TextInput style={styles.input} value={username} onChangeText={setUsername} />
-
+          
           <Text style={styles.label}>Adresse e-mail</Text>
           <TextInput style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-
+          
           <Text style={styles.label}>Nouveau mot de passe (optionnel)</Text>
           <TextInput style={styles.input} value={password} onChangeText={setPassword} secureTextEntry placeholder="Laisser vide pour ne pas changer" placeholderTextColor="#6c7d76" />
 
@@ -263,21 +302,30 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-
-        {/* SECTION 3 : Partage */}
+        {/* SECTION 3 : Steam */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Profil public</Text>
-          <Text style={styles.descText}>Partagez votre collection avec vos amis.</Text>
-          <TouchableOpacity style={[styles.actionButton, { marginTop: 12 }]} onPress={handleShare}>
-            <MaterialIcons name="share" size={20} color="#fff" />
-            <Text style={styles.actionButtonText}>{i18n.t('profile.share_copy') || 'Partager ma collection'}</Text>
+          <Text style={styles.sectionTitle}>Intégrations</Text>
+          <Text style={styles.descText}>Synchronisez vos jeux PC depuis votre compte Steam.</Text>
+          <TouchableOpacity style={styles.steamButton} onPress={handleSteamAuth}>
+            <FontAwesome5 name="steam" size={20} color="#fff" />
+            <Text style={styles.steamText}>Importer mes jeux Steam</Text>
           </TouchableOpacity>
         </View>
 
-        {/* SECTION 4 : Déconnexion et Suppression */}
-        <View style={[styles.section, styles.dangerZone]}>
-          <Text style={[styles.sectionTitle, { color: '#dc3545' }]}>Zone de danger</Text>
+        {/* SECTION 4 : Partage */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Profil public</Text>
+          <Text style={styles.descText}>Partagez votre collection avec vos amis.</Text>
+          <TouchableOpacity style={styles.actionButton} onPress={handleShareProfile}>
+            <MaterialIcons name="share" size={20} color="#fff" />
+            <Text style={styles.actionButtonText}>Partager mon profil</Text>
+          </TouchableOpacity>
+        </View>
 
+        {/* SECTION 5 : Déconnexion et Suppression */}
+        <View style={[styles.section, styles.dangerZone]}>
+          <Text style={[styles.sectionTitle, {color: '#dc3545'}]}>Zone de danger</Text>
+          
           <TouchableOpacity style={styles.dangerButtonOutline} onPress={handleLogout}>
             <Text style={styles.dangerButtonText}>Se déconnecter</Text>
           </TouchableOpacity>
@@ -288,6 +336,21 @@ export default function ProfileScreen() {
         </View>
 
       </ScrollView>
+
+      {/* Modal Steam */}
+      <Modal visible={isSyncing} transparent={true} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <FontAwesome5 name="sync" size={32} color="#66c0f4" style={{ marginBottom: 16 }} />
+            <Text style={styles.modalTitle}>Synchronisation Steam</Text>
+            <Text style={styles.modalStatus}>{syncStatus}</Text>
+            <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBarFill, { width: `${syncProgress}%` }]} />
+            </View>
+            <Text style={styles.progressText}>{syncProgress}%</Text>
+          </View>
+        </View>
+      </Modal>
 
     </View>
   );
@@ -303,15 +366,15 @@ const styles = StyleSheet.create({
   username: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
   email: { fontSize: 14, color: '#aaa', marginBottom: 4 },
   memberSince: { fontSize: 12, color: '#6c7d76' },
-
+  
   scrollContent: { padding: 20 },
   section: { backgroundColor: '#202020', borderRadius: 16, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: '#333' },
   sectionTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
   descText: { color: '#aaa', fontSize: 13, marginBottom: 16 },
-
+  
   label: { color: '#6c7d76', fontSize: 12, textTransform: 'uppercase', fontWeight: 'bold', marginBottom: 8, marginTop: 12 },
   input: { backgroundColor: '#1b1b1b', color: '#fff', borderRadius: 10, padding: 14, fontSize: 15, borderWidth: 1, borderColor: '#444' },
-
+  
   langRow: { flexDirection: 'row', gap: 10 },
   langBtn: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#444', alignItems: 'center' },
   langBtnActive: { borderColor: '#4CE5AE', backgroundColor: 'rgba(76, 229, 174, 0.1)' },
