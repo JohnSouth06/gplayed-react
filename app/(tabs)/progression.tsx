@@ -1,14 +1,12 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import ProgressionScreen from '../../screens/ProgressionScreen';
 
-export default function PlaceholderScreen() {
+
+export default function Progression() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.text}>Page en construction</Text>
-    </View>
+    <>
+      <StatusBar style="light" />
+      <ProgressionScreen />
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1b1b1b', justifyContent: 'center', alignItems: 'center' },
-  text: { color: '#4CE5AE', fontSize: 20, fontWeight: 'bold' }
-});

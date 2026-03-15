@@ -4,8 +4,8 @@ import { Tabs, useFocusEffect, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import i18n from '../config/i18n';
 import { getRegionalPrice } from '../config/currency';
+import i18n from '../config/i18n';
 
 export default function LoanedScreen() {
   const router = useRouter();
