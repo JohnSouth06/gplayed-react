@@ -3,15 +3,16 @@ import { Image as ExpoImage } from 'expo-image';
 import { Tabs, useFocusEffect, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import i18n from '../config/i18n';
+import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { getRegionalPrice } from '../config/currency';
+import i18n from '../config/i18n';
 
 
 export default function HomeScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [games, setGames] = useState([]);
+  const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [activeFormat, setActiveFormat] = useState('physical');
 
@@ -30,10 +31,32 @@ export default function HomeScreen() {
   const API_URL = 'https://www.g-played.com/api/index.php?action=api_get_games';
   const API_DELETE_URL = 'https://www.g-played.com/api/index.php?action=api_delete_game';
   const API_UPDATE_URL = 'https://www.g-played.com/api/index.php?action=api_update_game';
+  const API_PROFILE_URL = 'https://www.g-played.com/api/index.php?action=api_get_profile';
+
+  // Fonction pour récupérer le nom d'utilisateur
+  const fetchProfile = async () => {
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (!token) return;
+
+      const response = await fetch(API_PROFILE_URL, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      const data = await response.json();
+      if (data.success && data.user) {
+        setUsername(data.user.username);
+      }
+    } catch (error) {
+      console.error("Erreur profil:", error);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
       fetchGames();
+      fetchProfile();
       setIsSelectionMode(false);
       setSelectedGames([]);
     }, [])
@@ -184,6 +207,17 @@ export default function HomeScreen() {
   const renderGameCard = ({ item }) => {
     const isSelected = selectedGames.includes(item.id);
     const statusConfig = getStatusConfig(item.status);
+    
+    let finalImageUrl = null;
+    if (item.image_url) {
+      if (item.image_url.startsWith('http')) {
+        finalImageUrl = item.image_url;
+      } else if (item.image_url.startsWith('//')) {
+        finalImageUrl = `https:${item.image_url}`;
+      } else {
+        finalImageUrl = `https://www.g-played.com/${item.image_url}`;
+      }
+    }
 
     return (
       <TouchableOpacity
@@ -192,8 +226,14 @@ export default function HomeScreen() {
         onLongPress={() => handleLongPress(item.id)}
         onPress={() => handlePress(item)}
       >
-        {item.image_url ? (
-          <Image source={{ uri: `https://www.g-played.com/${item.image_url}` }} style={[styles.cover, isSelected && styles.coverSelected]} />
+        {finalImageUrl ? (
+          <ExpoImage 
+            source={{ uri: finalImageUrl }} 
+            style={[styles.cover, isSelected && styles.coverSelected]} 
+            contentFit="cover" 
+            cachePolicy="memory-disk" 
+            transition={200} 
+          />
         ) : (
           <View style={[styles.cover, styles.placeholderCover]} />
         )}
@@ -221,6 +261,12 @@ export default function HomeScreen() {
                 <Text style={styles.badgeTextLight}>{item.metacritic_score}</Text>
               </View>
             ) : null}
+            {item.playtime && parseFloat(item.playtime) > 0 ? (
+              <View style={[styles.badge, styles.badgePlaytime]}>
+                <MaterialIcons name="schedule" size={12} color="#fff" />
+                <Text style={styles.badgeTextLight}>{item.playtime}h</Text>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.statusRow}>
@@ -236,7 +282,7 @@ export default function HomeScreen() {
                 style={styles.quickLendButton} 
                 onPress={() => { setGameToLend(item); setLoanedToName(''); setLendModalVisible(true); }}
               >
-                <MaterialIcons name="handshake" size={20} color="#f0ad4e" />
+                <MaterialCommunityIcons name="handshake-outline" size={20} color="#f0ad4e" />
               </TouchableOpacity>
             )}
           </View>
@@ -276,6 +322,10 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+
+      <Text style={styles.pageTitle}>
+        {username ? i18n.t('home.greeting', { name: username }) : i18n.t('home.title') || 'Ma Collection'}
+      </Text>
       <Tabs.Screen options={{ headerShown: !isSelectionMode }} />
 
       {isSelectionMode && (
@@ -290,10 +340,10 @@ export default function HomeScreen() {
       {!isSelectionMode && (
         <View style={styles.toggleContainer}>
           <TouchableOpacity style={[styles.toggleButton, activeFormat === 'physical' && styles.toggleButtonActive]} onPress={() => setActiveFormat('physical')}>
-            <Text style={[styles.toggleText, activeFormat === 'physical' && styles.toggleTextActive]}>{i18n.t('home.tab_physical')}</Text>
+            <Text style={[styles.toggleText, activeFormat === 'physical' && styles.toggleTextActive]}><MaterialCommunityIcons name="minidisc" style={[styles.toggleIcons, activeFormat === 'physical' && styles.toggleIconsActive]} /> {i18n.t('home.tab_physical')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.toggleButton, activeFormat === 'digital' && styles.toggleButtonActive]} onPress={() => setActiveFormat('digital')}>
-            <Text style={[styles.toggleText, activeFormat === 'digital' && styles.toggleTextActive]}>{i18n.t('home.tab_digital')}</Text>
+            <Text style={[styles.toggleText, activeFormat === 'digital' && styles.toggleTextActive]}><MaterialCommunityIcons name="cloud-outline" style={[styles.toggleIcons, activeFormat === 'digital' && styles.toggleIconsActive]} /> {i18n.t('home.tab_digital')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -427,12 +477,15 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1b1b1b' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1b1b1b' },
+  pageTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff', marginHorizontal: 20, marginTop: 20, marginBottom: 16 },
   selectionHeader: { paddingTop: 60, paddingBottom: 20, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', backgroundColor: '#dc3545', marginBottom: 20 },
   selectionText: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginLeft: 20 },
   toggleContainer: { flexDirection: 'row', backgroundColor: '#202020', borderRadius: 50, marginHorizontal: 20, marginBottom: 16, marginTop: 16, padding: 4 },
   toggleButton: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 50 },
   toggleButtonActive: { backgroundColor: '#4CE5AE' },
   toggleText: { color: '#6c7d76', fontWeight: 'bold' },
+  toggleIcons: { color: '#6c7d76', fontSize: 18 },
+  toggleIconsActive: { color: '#111', fontSize: 18 },
   toggleTextActive: { color: '#111' },
   localSearchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#202020', borderRadius: 12, borderWidth: 1, borderColor: '#333', marginHorizontal: 20, marginBottom: 16, paddingHorizontal: 12, height: 44 },
   localSearchIcon: { marginRight: 8 },
@@ -459,6 +512,7 @@ const styles = StyleSheet.create({
   badge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, gap: 4 },
   badgePlatform: { backgroundColor: '#fff' },
   badgePrice: { backgroundColor: '#2e6c56' },
+  badgePlaytime: { backgroundColor: '#8e44ad' },
   badgeMeta: { backgroundColor: '#ed9c01' },
   badgeTextPlatform: { fontSize: 11, fontWeight: 'bold', color: '#111' },
   badgeTextLight: { fontSize: 11, fontWeight: 'bold', color: '#fff' },
@@ -477,8 +531,8 @@ const styles = StyleSheet.create({
   lendInput: { backgroundColor: '#202020', color: '#fff', borderRadius: 12, padding: 16, fontSize: 16, borderWidth: 1, borderColor: '#333', marginBottom: 24 },
   lendModalActions: { flexDirection: 'row', gap: 12 },
   lendModalBtn: { flex: 1, padding: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  lendModalBtnCancel: { backgroundColor: 'transparent', borderColor: '#6c7d76' },
-  lendModalBtnConfirm: { backgroundColor: '#f0ad4e', borderColor: '#f0ad4e' },
+  lendModalBtnCancel: { backgroundColor: 'transparent', borderColor: '#6c7d76', borderRadius: 35 },
+  lendModalBtnConfirm: { backgroundColor: '#f0ad4e', borderColor: '#f0ad4e', borderRadius: 35 },
   lendModalBtnTextCancel: { color: '#ccc', fontWeight: 'bold', fontSize: 16 },
   lendModalBtnTextConfirm: { color: '#111', fontWeight: 'bold', fontSize: 16 }
 });
