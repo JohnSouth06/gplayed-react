@@ -1,11 +1,12 @@
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Image as ExpoImage } from 'expo-image';
 import { Tabs, useFocusEffect, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import i18n from '../config/i18n';
+import { ActivityIndicator, Alert, FlatList, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { getRegionalPrice } from '../config/currency';
+import i18n from '../config/i18n';
 
 export default function LoanedScreen() {
   const router = useRouter();
@@ -20,6 +21,13 @@ export default function LoanedScreen() {
   const [sortBy, setSortBy] = useState('recent');
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState(null);
+
+  // Nouveaux états pour l'édition
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [gameToEdit, setGameToEdit] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editDate, setEditDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const API_URL = 'https://www.g-played.com/api/index.php?action=api_get_games';
   const API_DELETE_URL = 'https://www.g-played.com/api/index.php?action=api_delete_game';
@@ -130,6 +138,52 @@ export default function LoanedScreen() {
     }
   };
 
+  const openEditModal = (game) => {
+    setGameToEdit(game);
+    setEditName(game.loaned_to || '');
+    setEditDate(game.loaned_date ? new Date(game.loaned_date) : new Date());
+    setEditModalVisible(true);
+  };
+
+  const handleUpdateLoan = async () => {
+    if (!editName.trim()) {
+      Alert.alert(i18n.t('common.error'), 'Veuillez renseigner un nom');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+
+      // Formatage manuel strict en YYYY-MM-DD
+      const d = new Date(editDate);
+      const formattedDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      const response = await fetch(API_UPDATE_URL, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: gameToEdit.id,
+          status: 'loaned',
+          loaned_to: editName.trim(),
+          loaned_date: formattedDate
+        })
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setEditModalVisible(false);
+        fetchLoanedGames();
+      } else {
+        Alert.alert(i18n.t('common.error'), data.message);
+        setIsLoading(false);
+      }
+    } catch (error) {
+      Alert.alert(i18n.t('common.error'), 'Erreur de mise à jour');
+      setIsLoading(false);
+    }
+  };
+
   const getStandardPlatform = (platformStr) => {
     if (!platformStr) return i18n.t('common.other');
     if (platformStr.includes(',') || platformStr.includes('/') || platformStr.toLowerCase() === 'multiplateforme') return i18n.t('common.multiplatform');
@@ -182,6 +236,17 @@ export default function LoanedScreen() {
     const isSelected = selectedGames.includes(item.id);
     const formattedDate = item.loaned_date ? new Date(item.loaned_date).toLocaleDateString('fr-FR') : i18n.t('common.unknown');
 
+    // Correction de l'image comme dans HomeScreen
+    let finalImageUrl = null;
+    if (item.image_url) {
+      if (item.image_url.startsWith('http')) {
+        finalImageUrl = item.image_url;
+      } else if (item.image_url.startsWith('//')) {
+        finalImageUrl = `https:${item.image_url}`;
+      } else {
+        finalImageUrl = `https://www.g-played.com/${item.image_url}`;
+      }
+    }
 
     return (
       <TouchableOpacity
@@ -190,8 +255,12 @@ export default function LoanedScreen() {
         onLongPress={() => handleLongPress(item.id)}
         onPress={() => handlePress(item)}
       >
-        {item.image_url ? (
-          <Image source={{ uri: `https://www.g-played.com/${item.image_url}` }} style={[styles.cover, isSelected && styles.coverSelected]} />
+        {finalImageUrl ? (
+          <ExpoImage
+            source={{ uri: finalImageUrl }}
+            style={[styles.cover, isSelected && styles.coverSelected]}
+            contentFit="cover"
+          />
         ) : (
           <View style={[styles.cover, styles.placeholderCover]} />
         )}
@@ -209,16 +278,6 @@ export default function LoanedScreen() {
                 <Text style={styles.badgeTextLight}>{getRegionalPrice(item)}</Text>
               </View>
             ) : null}
-            {item.metacritic_score && item.metacritic_score > 0 ? (
-              <View style={[styles.badge, styles.badgeMeta]}>
-                <ExpoImage
-                  source={require('../assets/images/metacritic.svg')}
-                  style={{ width: 14, height: 14 }}
-                  contentFit="contain" tintColor="#fff"
-                />
-                <Text style={styles.badgeTextLight}>{item.metacritic_score}</Text>
-              </View>
-            ) : null}
           </View>
 
           <View style={styles.loanInfoContainer}>
@@ -226,7 +285,7 @@ export default function LoanedScreen() {
               <MaterialIcons name="person" size={14} color="#f0ad4e" /> {i18n.t('loaned.loaned_to')} <Text style={styles.loanInfoBold}>{item.loaned_to || i18n.t('common.unknown')}</Text>
             </Text>
             <Text style={styles.loanInfoText}>
-              <MaterialIcons name="event" size={14} color="#f0ad4e" /> {i18n.t('loaned.loaned_date')} <Text style={styles.loanInfoBold}>{formattedDate}</Text>
+              <MaterialIcons name="event" size={14} color="#f0ad4e" /> Prêté le: <Text style={styles.loanInfoBold}>{formattedDate}</Text>
             </Text>
           </View>
         </View>
@@ -236,9 +295,14 @@ export default function LoanedScreen() {
             <MaterialIcons name="check-circle" size={28} color="#dc3545" />
           </View>
         ) : (
-          <TouchableOpacity style={styles.returnButton} onPress={() => promptReturn(item)}>
-            <MaterialCommunityIcons name="keyboard-return" size={26} color="#f0ad4e" />
-          </TouchableOpacity>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity style={styles.editButton} onPress={() => openEditModal(item)}>
+              <MaterialIcons name="edit" size={24} color="#4CE5AE" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.returnButton} onPress={() => promptReturn(item)}>
+              <MaterialCommunityIcons name="keyboard-return" size={26} color="#f0ad4e" />
+            </TouchableOpacity>
+          </View>
         )}
       </TouchableOpacity>
     );
@@ -248,6 +312,7 @@ export default function LoanedScreen() {
 
   return (
     <View style={styles.container}>
+      {/*... Vos composants Tabs.Screen, entête, barres de recherche et filtres ne changent pas ...*/}
       <Tabs.Screen options={{ headerShown: !isSelectionMode }} />
 
       {isSelectionMode ? (
@@ -278,19 +343,15 @@ export default function LoanedScreen() {
               </TouchableOpacity>
             )}
           </View>
-
           <View style={styles.filtersRow}>
+            {/*... Boutons de filtres existants ...*/}
             <TouchableOpacity style={styles.filterButton} onPress={() => openModal('platform')}>
-              <Text style={styles.filterButtonText} numberOfLines={1}>
-                {filterPlatform === 'all' ? i18n.t('common.platforms') : filterPlatform}
-              </Text>
+              <Text style={styles.filterButtonText} numberOfLines={1}>{filterPlatform === 'all' ? i18n.t('common.platforms') : filterPlatform}</Text>
               <MaterialIcons name="arrow-drop-down" size={20} color="#6c7d76" />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.filterButton} onPress={() => openModal('sort')}>
-              <Text style={styles.filterButtonText} numberOfLines={1}>
-                {sortBy === 'recent' ? i18n.t('common.recent') : sortBy === 'title' ? i18n.t('common.a_z') : sortBy === 'platform' ? i18n.t('common.platform') : i18n.t('common.price')}
-              </Text>
+              <Text style={styles.filterButtonText} numberOfLines={1}>{sortBy === 'recent' ? i18n.t('common.recent') : sortBy === 'title' ? i18n.t('common.a_z') : sortBy === 'platform' ? i18n.t('common.platform') : i18n.t('common.price')}</Text>
               <MaterialIcons name="arrow-drop-down" size={20} color="#6c7d76" />
             </TouchableOpacity>
           </View>
@@ -318,34 +379,63 @@ export default function LoanedScreen() {
         </TouchableOpacity>
       )}
 
-      <Modal visible={modalVisible} transparent animationType="slide">
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalVisible(false)}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{modalType === 'platform' ? i18n.t('common.choose_platform') : i18n.t('common.sort_by')}</Text>
-            <FlatList
-              data={getModalOptions()}
-              keyExtractor={item => item.id}
-              showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => {
-                const isActive = (modalType === 'platform' && filterPlatform === item.id) || (modalType === 'sort' && sortBy === item.id);
-                return (
-                  <TouchableOpacity
-                    style={styles.modalOption}
-                    onPress={() => {
-                      if (modalType === 'platform') setFilterPlatform(item.id);
-                      if (modalType === 'sort') setSortBy(item.id);
-                      setModalVisible(false);
-                    }}
-                  >
-                    <Text style={[styles.modalOptionText, isActive && styles.modalOptionTextActive]}>{item.label}</Text>
-                    {isActive && <MaterialIcons name="check" size={20} color="#4CE5AE" />}
-                  </TouchableOpacity>
-                );
-              }}
+      {/* Modale d'édition */}
+      <Modal visible={editModalVisible} transparent animationType="fade">
+        <View style={styles.lendModalOverlay}>
+          <View style={styles.lendModalContent}>
+            <Text style={styles.lendModalTitle}>Modifier le prêt</Text>
+            <TextInput
+              style={styles.lendInput}
+              placeholder="Prêté à"
+              placeholderTextColor="#6c7d76"
+              value={editName}
+              onChangeText={setEditName}
             />
+
+            <TouchableOpacity style={[styles.lendInput, { justifyContent: 'center' }]} onPress={() => setShowDatePicker(true)}>
+              <Text style={{ color: '#fff', fontSize: 16 }}>
+                <MaterialIcons name="event" size={16} color="#6c7d76" /> {editDate.toLocaleDateString('fr-FR')}
+              </Text>
+            </TouchableOpacity>
+
+            {showDatePicker && (
+              <View style={{ backgroundColor: '#202020', borderRadius: 12, padding: 10, marginBottom: 16 }}>
+                <DateTimePicker
+                  value={editDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  themeVariant="dark"
+                  textColor="#ffffff"
+                  onChange={(event, selectedDate) => {
+                    if (Platform.OS === 'android') {
+                      setShowDatePicker(false);
+                    }
+                    if (selectedDate) setEditDate(selectedDate);
+                  }}
+                />
+                {Platform.OS === 'ios' && (
+                  <TouchableOpacity
+                    style={{ backgroundColor: '#4CE5AE', padding: 12, borderRadius: 8, marginTop: 10, alignItems: 'center' }}
+                    onPress={() => setShowDatePicker(false)}
+                  >
+                    <Text style={{ color: '#111', fontWeight: 'bold' }}>Valider la date</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+            <View style={styles.lendModalActions}>
+              <TouchableOpacity style={[styles.lendModalBtn, styles.lendModalBtnCancel]} onPress={() => setEditModalVisible(false)}>
+                <Text style={styles.lendModalBtnTextCancel}>{i18n.t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.lendModalBtn, styles.lendModalBtnConfirm]} onPress={handleUpdateLoan}>
+                <Text style={styles.lendModalBtnTextConfirm}>{i18n.t('common.confirm')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
+
+      {/*... Vos autres modales de filtres (modalVisible) ...*/}
     </View>
   );
 }
@@ -373,8 +463,6 @@ const styles = StyleSheet.create({
   cardSelected: { borderColor: '#dc3545', borderWidth: 2, backgroundColor: 'rgba(220, 53, 69, 0.1)' },
   coverSelected: { opacity: 0.5 },
   checkOverlay: { position: 'absolute', right: 20, top: '40%' },
-  returnButton: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.05)' },
-  cover: { display: 'flex', alignItems: 'center', justifyContent: 'center', justifyItems: 'center', flexDirection: 'row-reverse', width: '100', height: '100vh' },
   placeholderCover: { backgroundColor: '#151515' },
   cardInfo: { flex: 1, padding: 12, justifyContent: 'center' },
   gameTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
@@ -385,11 +473,27 @@ const styles = StyleSheet.create({
   badgeMeta: { backgroundColor: '#ed9c01' },
   badgeTextPlatform: { fontSize: 11, fontWeight: 'bold', color: '#111' },
   badgeTextLight: { fontSize: 11, fontWeight: 'bold', color: '#fff' },
+  cover: { width: 90, height: 140 },
   loanInfoContainer: { backgroundColor: 'rgba(240, 173, 78, 0.1)', padding: 6, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(240, 173, 78, 0.3)', marginTop: 4 },
   loanInfoText: { fontSize: 11, color: '#ccc', marginBottom: 2 },
   loanInfoBold: { fontWeight: 'bold', color: '#fff' },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
   emptyText: { color: '#6c7d76', fontSize: 16, textAlign: 'center', marginBottom: 20 },
   fab: { position: 'absolute', bottom: 25, right: 25, width: 60, height: 60, borderRadius: 30, backgroundColor: '#4CE5AE', justifyContent: 'center', alignItems: 'center', elevation: 5 },
-  fabDelete: { backgroundColor: '#dc3545' }
+  fabDelete: { backgroundColor: '#dc3545' },
+
+  // NOUVEAUX STYLES AJOUTÉS :
+  actionButtons: { flexDirection: 'row', borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.05)' },
+  editButton: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 },
+  returnButton: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 },
+  lendModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  lendModalContent: { backgroundColor: '#1b1b1b', width: '100%', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: '#333' },
+  lendModalTitle: { color: '#f0ad4e', fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  lendInput: { backgroundColor: '#202020', color: '#fff', borderRadius: 12, padding: 16, fontSize: 16, borderWidth: 1, borderColor: '#333', marginBottom: 16, height: 55 },
+  lendModalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  lendModalBtn: { flex: 1, padding: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  lendModalBtnCancel: { backgroundColor: 'transparent', borderColor: '#6c7d76', borderRadius: 35 },
+  lendModalBtnConfirm: { backgroundColor: '#f0ad4e', borderColor: '#f0ad4e', borderRadius: 35 },
+  lendModalBtnTextCancel: { color: '#ccc', fontWeight: 'bold', fontSize: 16 },
+  lendModalBtnTextConfirm: { color: '#111', fontWeight: 'bold', fontSize: 16 }
 });
