@@ -64,7 +64,7 @@
   },
   "home": {
     "title": "Ma Collection",
-    "greeting": "Bonjour %{name} 👋",
+    "greeting": "Bonjour %{name}",
     "tab_physical": "Physique",
     "tab_digital": "Digital",
     "search_placeholder": "Rechercher un jeu...",
