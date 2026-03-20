@@ -3,25 +3,25 @@ import { Tabs, useFocusEffect, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
-import i18n from '../config/i18n';
 import { getRegionalPrice } from '../config/currency';
+import i18n from '../config/i18n';
 
 export default function WishlistScreen() {
   const router = useRouter();
   const [games, setGames] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeFormat, setActiveFormat] = useState('physical');
 
   // Mode sélection
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedGames, setSelectedGames] = useState([]);
 
-  // NOUVEAU : Recherche, filtres et tri
+  // Recherche, filtres et tri
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPlatform, setFilterPlatform] = useState('all');
   const [sortBy, setSortBy] = useState('recent');
   const [modalVisible, setModalVisible] = useState(false);
-  const [modalType, setModalType] = useState(null); // 'platform' ou 'sort'
+  const [modalType, setModalType] = useState(null);
 
   const API_URL = 'https://www.g-played.com/api/index.php?action=api_get_games';
   const API_DELETE_URL = 'https://www.g-played.com/api/index.php?action=api_delete_game';
@@ -57,7 +57,6 @@ export default function WishlistScreen() {
     }
   };
 
-  // --- LOGIQUE DE SÉLECTION ---
   const handleLongPress = (id) => {
     if (!isSelectionMode) {
       setIsSelectionMode(true);
@@ -113,27 +112,26 @@ export default function WishlistScreen() {
   const promptAcquire = (game) => {
     Alert.alert(
       i18n.t('wishlist.acquire_title'),
-      i18n.t('wishlist.acquire_text', { title: game.title }),
+      i18n.t('wishlist.acquire_question', { title: game.title }),
       [
+        { text: i18n.t('wishlist.acquire_yes'), onPress: () => acquireGame(game, game.format || activeFormat) },
         { text: i18n.t('common.cancel'), style: "cancel" },
-        { text: i18n.t('wishlist.physical'), onPress: () => acquireGame(game.id, 'physical') },
-        { text: i18n.t('wishlist.digital'), onPress: () => acquireGame(game.id, 'digital') }
       ]
     );
   };
 
-  const acquireGame = async (gameId, format) => {
+  const acquireGame = async (game, format) => {
     setIsLoading(true);
     try {
       const token = await SecureStore.getItemAsync('userToken');
       const response = await fetch(API_UPDATE_URL, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: gameId, status: 'not_started', format: format })
+        body: JSON.stringify({ id: game.id, status: 'not_started', format: format })
       });
       const data = await response.json();
       if (data.success) {
-        Alert.alert(i18n.t('common.success'), i18n.t('wishlist.acquire_success', { name: loanedToName.trim() }));
+        Alert.alert(i18n.t('common.success'), i18n.t('wishlist.acquire_success', { name: game.title }));
         fetchWishlist(); 
       } else {
         Alert.alert(i18n.t('common.error'), data.message);
@@ -145,29 +143,23 @@ export default function WishlistScreen() {
     }
   };
 
-  // --- NOUVEAU : LOGIQUE DE FILTRES ET DE RECHERCHE ---
   const getStandardPlatform = (platformStr) => {
-    if (!platformStr) return 'Autre';
-    if (platformStr.includes(',') || platformStr.includes('/') || platformStr.toLowerCase() === 'multiplateforme') {
-      return 'Multiplateforme';
-    }
+    if (!platformStr) return i18n.t('common.other');
+    if (platformStr.includes(',') || platformStr.includes('/') || platformStr.toLowerCase() === 'multiplateforme') return i18n.t('common.multiplatform');
     return platformStr.trim();
   };
 
   const applyFiltersAndSort = () => {
-    let result = [...games];
+    let result = games.filter(g => (g.format || 'physical') === activeFormat);
 
-    // Recherche texte
     if (searchQuery.trim() !== '') {
       result = result.filter(g => g.title.toLowerCase().includes(searchQuery.toLowerCase()));
     }
 
-    // Filtre Plateforme
     if (filterPlatform !== 'all') {
       result = result.filter(g => getStandardPlatform(g.platform) === filterPlatform);
     }
 
-    // Tri
     result.sort((a, b) => {
       if (sortBy === 'title') return a.title.localeCompare(b.title);
       if (sortBy === 'platform') return getStandardPlatform(a.platform).localeCompare(getStandardPlatform(b.platform));
@@ -179,8 +171,7 @@ export default function WishlistScreen() {
   };
 
   const displayedGames = applyFiltersAndSort();
-  
-  const platformSet = new Set(games.map(g => getStandardPlatform(g.platform)));
+  const platformSet = new Set(games.filter(g => (g.format || 'physical') === activeFormat).map(g => getStandardPlatform(g.platform)));
   const uniquePlatforms = ['all', ...Array.from(platformSet).sort()];
 
   const openModal = (type) => {
@@ -189,9 +180,7 @@ export default function WishlistScreen() {
   };
 
   const getModalOptions = () => {
-    if (modalType === 'platform') {
-      return uniquePlatforms.map(p => ({ id: p, label: p === 'all' ? i18n.t('common.all') : p }));
-    }
+    if (modalType === 'platform') return uniquePlatforms.map(p => ({ id: p, label: p === 'all' ? i18n.t('common.all') : p }));
     if (modalType === 'sort') {
       return [
         { id: 'recent', label: i18n.t('sort.recent') },
@@ -214,6 +203,66 @@ export default function WishlistScreen() {
     return <MaterialIcons name="videogame-asset" size={14} color={iconColor} />;
   };
 
+  const renderHeader = () => {
+    // On cache ces éléments quand on est en mode sélection pour la suppression
+    if (isSelectionMode) return null;
+
+    return (
+      <View style={styles.scrollableHeaderContainer}>
+        {/* 1. Titre de la page */}
+        <Text style={styles.pageTitle}>{i18n.t('wishlist.title') || 'Mes Souhaits'}</Text>
+
+        {/* 2. Onglets Physique / Digital */}
+        <View style={styles.toggleContainer}>
+          <TouchableOpacity style={[styles.toggleButton, activeFormat === 'physical' && styles.toggleButtonActive]} onPress={() => setActiveFormat('physical')}>
+            <Text style={[styles.toggleText, activeFormat === 'physical' && styles.toggleTextActive]}>
+              <MaterialCommunityIcons name="minidisc" style={[styles.toggleIcons, activeFormat === 'physical' && styles.toggleIconsActive]} /> {i18n.t('home.tab_physical')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.toggleButton, activeFormat === 'digital' && styles.toggleButtonActive]} onPress={() => setActiveFormat('digital')}>
+            <Text style={[styles.toggleText, activeFormat === 'digital' && styles.toggleTextActive]}>
+              <MaterialCommunityIcons name="cloud-outline" style={[styles.toggleIcons, activeFormat === 'digital' && styles.toggleIconsActive]} /> {i18n.t('home.tab_digital')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 3. Barre de recherche locale */}
+        <View style={styles.localSearchContainer}>
+          <MaterialIcons name="search" size={20} color="#6c7d76" style={styles.localSearchIcon} />
+          <TextInput
+            style={styles.localSearchInput}
+            placeholder={i18n.t('home.search_placeholder')}
+            placeholderTextColor="#6c7d76"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <MaterialIcons name="cancel" size={20} color="#6c7d76" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* 4. Boutons de filtres et tri (sans le bouton "Statut") */}
+        <View style={styles.filtersRow}>
+          <TouchableOpacity style={styles.filterButton} onPress={() => openModal('platform')}>
+            <Text style={styles.filterButtonText} numberOfLines={1}>
+              {filterPlatform === 'all' ? i18n.t('common.platforms') : filterPlatform}
+            </Text>
+            <MaterialIcons name="arrow-drop-down" size={20} color="#6c7d76" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.filterButton} onPress={() => openModal('sort')}>
+            <Text style={styles.filterButtonText} numberOfLines={1}>
+              {sortBy === 'recent' ? i18n.t('common.recent') : sortBy === 'title' ? i18n.t('common.a_z') : i18n.t('common.price')}
+            </Text>
+            <MaterialIcons name="arrow-drop-down" size={20} color="#6c7d76" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   const renderGameCard = ({ item }) => {
     const isSelected = selectedGames.includes(item.id);
 
@@ -225,26 +274,27 @@ export default function WishlistScreen() {
         onPress={() => handlePress(item)}
       >
         {item.image_url ? (
-          <Image source={{ uri: `https://www.g-played.com/${item.image_url}` }} style={[styles.cover, isSelected && styles.coverSelected]} />
+          <Image 
+            source={{ uri: item.image_url.startsWith('http') ? item.image_url : `https://www.g-played.com/${item.image_url}` }} 
+            style={[styles.cover, isSelected && styles.coverSelected]} 
+          />
         ) : (
           <View style={[styles.cover, styles.placeholderCover]} />
         )}
         <View style={styles.cardInfo}>
           <Text style={styles.gameTitle} numberOfLines={1}>{item.title}</Text>
-
           <View style={styles.badgesContainer}>
             <View style={[styles.badge, styles.badgePlatform]}>
               {getPlatformIcon(item.platform, '#111')}
               <Text style={styles.badgeTextPlatform}>{item.platform}</Text>
             </View>
             {getRegionalPrice(item) ? (
-            <View style={[styles.badge, styles.badgePrice]}>
-              <MaterialIcons name="sell" size={12} color="#fff" />
-              <Text style={styles.badgeTextLight}>{getRegionalPrice(item)}</Text>
-            </View>
-          ) : null}
+              <View style={[styles.badge, styles.badgePrice]}>
+                <MaterialIcons name="sell" size={12} color="#fff" />
+                <Text style={styles.badgeTextLight}>{getRegionalPrice(item)}</Text>
+              </View>
+            ) : null}
           </View>
-
         </View>
 
         {isSelected ? (
@@ -264,107 +314,49 @@ export default function WishlistScreen() {
 
   return (
     <View style={styles.container}>
+      {/* On active le header natif (Logo/Avatar) sauf en mode sélection */}
       <Tabs.Screen options={{ headerShown: !isSelectionMode }} />
 
-      {isSelectionMode ? (
+      {/* Header de sélection pour suppression */}
+      {isSelectionMode && (
         <View style={styles.selectionHeader}>
           <TouchableOpacity onPress={() => { setIsSelectionMode(false); setSelectedGames([]); }}>
             <MaterialIcons name="close" size={28} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.selectionText}>{selectedGames.length} sélectionné(s)</Text>
-        </View>
-      ) : (
-        <Text style={styles.pageTitle}>{i18n.t('wishlist.title')}</Text>
-      )}
-
-      {/* RECHERCHE ET FILTRES */}
-      {!isSelectionMode && (
-        <View>
-          {/* Barre de recherche */}
-          <View style={styles.localSearchContainer}>
-            <MaterialIcons name="search" size={20} color="#6c7d76" style={styles.localSearchIcon} />
-            <TextInput
-              style={styles.localSearchInput}
-              placeholder={i18n.t('wishlist.search_placeholder')}
-              placeholderTextColor="#6c7d76"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <MaterialIcons name="cancel" size={20} color="#6c7d76" />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Boutons de Filtres et Tri */}
-          {games.length > 0 && (
-            <View style={styles.filtersRow}>
-              <TouchableOpacity style={styles.filterButton} onPress={() => openModal('platform')}>
-                <Text style={styles.filterButtonText} numberOfLines={1}>
-                  {filterPlatform === 'all' ? i18n.t('common.platforms') : filterPlatform}
-                </Text>
-                <MaterialIcons name="arrow-drop-down" size={20} color="#6c7d76" />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.filterButton} onPress={() => openModal('sort')}>
-                <Text style={styles.filterButtonText} numberOfLines={1}>
-                  {sortBy === 'recent' ? i18n.t('common.recent') : sortBy === 'title' ? i18n.t('common.a_z') : sortBy === 'platform' ? i18n.t('common.platform') : i18n.t('common.price')}
-                </Text>
-                <MaterialIcons name="arrow-drop-down" size={20} color="#6c7d76" />
-              </TouchableOpacity>
-            </View>
-          )}
+          <Text style={styles.selectionText}>{selectedGames.length} {i18n.t('common.selected')}</Text>
         </View>
       )}
 
-      {games.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>{i18n.t('wishlist.empty_text')}</Text>
-          <TouchableOpacity 
-            style={styles.searchButton} 
-            onPress={() => router.push({ pathname: '/search', params: { defaultStatus: 'wishlist', defaultFormat: 'physical' }})}
-          >
-            <Text style={styles.searchButtonText}>{i18n.t('wishlist.search_button')}</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          data={displayedGames}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderGameCard}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<Text style={styles.emptyText}>{i18n.t('home.empty_text')}</Text>}
-        />
-      )}
+      {/* La liste principale avec le ListHeaderComponent injecté */}
+      <FlatList
+        data={games /* Ou "displayedGames" si vous utilisez la fonction de filtre locale */}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={renderGameCard} // Votre fonction existante pour afficher un jeu
+        ListHeaderComponent={renderHeader}
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={<Text style={styles.emptyText}>{i18n.t('home.empty_text') || 'Aucun jeu'}</Text>}
+      />
 
-      {isSelectionMode ? (
+      {/* Bouton de suppression flottant */}
+      {isSelectionMode && (
         <TouchableOpacity style={[styles.fab, styles.fabDelete]} onPress={deleteSelectedGames}>
           <MaterialIcons name="delete" size={28} color="#fff" />
         </TouchableOpacity>
-      ) : (
-        games.length > 0 && (
-          <TouchableOpacity style={styles.fab} onPress={() => router.push({ pathname: '/search', params: { defaultStatus: 'wishlist', defaultFormat: 'physical' }})}>
-            <Text style={styles.fabText}>+</Text>
-          </TouchableOpacity>
-        )
       )}
 
-      {/* MENU MODAL (BottomSheet) */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalVisible(false)}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
-              {modalType === 'platform' ? i18n.t('common.choose_platform') : modalType === 'status' ? i18n.t('home.choose_status') : i18n.t('common.sort_by')}
+              {modalType === 'platform' ? i18n.t('common.choose_platform') : modalType === 'sort' ? i18n.t('common.sort_by') : ''}
             </Text>
             <FlatList 
               data={getModalOptions()}
               keyExtractor={item => item.id}
               showsVerticalScrollIndicator={false}
               renderItem={({item}) => {
-                const isActive = (modalType === 'platform' && filterPlatform === item.id) ||
-                                 (modalType === 'sort' && sortBy === item.id);
+                const isActive = (modalType === 'platform' && filterPlatform === item.id) || (modalType === 'sort' && sortBy === item.id);
                 return (
                   <TouchableOpacity 
                     style={styles.modalOption} 
@@ -374,9 +366,7 @@ export default function WishlistScreen() {
                       setModalVisible(false);
                     }}
                   >
-                    <Text style={[styles.modalOptionText, isActive && styles.modalOptionTextActive]}>
-                      {item.label}
-                    </Text>
+                    <Text style={[styles.modalOptionText, isActive && styles.modalOptionTextActive]}>{item.label}</Text>
                     {isActive && <MaterialIcons name="check" size={20} color="#4CE5AE" />}
                   </TouchableOpacity>
                 );
@@ -390,15 +380,25 @@ export default function WishlistScreen() {
 }
 
 const styles = StyleSheet.create({
+  scrollableHeaderContainer: { paddingTop: 20 },
   container: { flex: 1, backgroundColor: '#1b1b1b' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1b1b1b' },
-  pageTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff', marginHorizontal: 20, marginTop: 20, marginBottom: 16 },
+
+  pageTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff', marginBottom: 16 },
+  toggleContainer: { flexDirection: 'row', backgroundColor: '#202020', borderRadius: 50, marginBottom: 16, padding: 4 },
+  toggleButton: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 50 },
+  toggleButtonActive: { backgroundColor: '#4CE5AE' },
+  toggleText: { color: '#6c7d76', fontWeight: 'bold' },
+  toggleIcons: { color: '#6c7d76', fontSize: 18 },
+  toggleIconsActive: { color: '#111', fontSize: 18 },
+  toggleTextActive: { color: '#111' },
+
   selectionHeader: { paddingTop: 60, paddingBottom: 20, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', backgroundColor: '#dc3545', marginBottom: 16 },
   selectionText: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginLeft: 20 },
-  localSearchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#202020', borderRadius: 12, borderWidth: 1, borderColor: '#333', marginHorizontal: 20, marginBottom: 16, paddingHorizontal: 12, height: 44 },
+  localSearchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#202020', borderRadius: 12, borderWidth: 1, borderColor: '#333', marginBottom: 16, paddingHorizontal: 12, height: 44 },
   localSearchIcon: { marginRight: 8 },
   localSearchInput: { flex: 1, color: '#fff', fontSize: 14 },
-  filtersRow: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 16, gap: 10 },
+  filtersRow: { flexDirection: 'row', marginBottom: 16, gap: 10 },
   filterButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#202020', borderWidth: 1, borderColor: '#333', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
   filterButtonText: { color: '#ccc', fontSize: 13, fontWeight: '600' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
@@ -430,5 +430,4 @@ const styles = StyleSheet.create({
   fab: { position: 'absolute', bottom: 25, right: 25, width: 60, height: 60, borderRadius: 30, backgroundColor: '#4CE5AE', justifyContent: 'center', alignItems: 'center', elevation: 5 },
   fabText: { color: '#111', fontSize: 32, fontWeight: 'bold', lineHeight: 34 },
   fabDelete: { backgroundColor: '#dc3545' }
-  
 });
