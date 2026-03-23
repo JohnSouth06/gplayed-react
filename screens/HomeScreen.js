@@ -421,7 +421,7 @@ export default function HomeScreen() {
         data={displayedGames}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderGameCard}
-        ListHeaderComponent={renderHeader}
+        ListHeaderComponent={renderHeader()} 
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={<Text style={styles.emptyText}>{i18n.t('home.empty_text')}</Text>}

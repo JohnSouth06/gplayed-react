@@ -364,7 +364,7 @@ export default function LoanedScreen() {
         data={displayedGames}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderGameCard}
-        ListHeaderComponent={renderHeader}
+        ListHeaderComponent={renderHeader()}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={

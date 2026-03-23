@@ -215,7 +215,7 @@ export default function PSNTrophiesScreen() {
                     data={games}
                     keyExtractor={(item) => item.id.toString()}
                     renderItem={renderGameCard}
-                    ListHeaderComponent={renderHeader} // 2. On insère le header ici
+                    ListHeaderComponent={renderHeader()}
                     contentContainerStyle={styles.listContainer}
                     showsVerticalScrollIndicator={false}
                     ListEmptyComponent={

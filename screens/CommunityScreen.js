@@ -157,7 +157,7 @@ export default function CommunityScreen() {
                 <FlatList
                     data={users}
                     keyExtractor={(item) => item.id.toString()}
-                    ListHeaderComponent={renderHeader} // Injection du header défilant
+                    ListHeaderComponent={renderHeader()}
                     renderItem={({ item }) => (
                         <UserCard 
                             item={item} 

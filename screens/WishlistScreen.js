@@ -332,7 +332,7 @@ export default function WishlistScreen() {
         data={games /* Ou "displayedGames" si vous utilisez la fonction de filtre locale */}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderGameCard} // Votre fonction existante pour afficher un jeu
-        ListHeaderComponent={renderHeader}
+        ListHeaderComponent={renderHeader()}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={<Text style={styles.emptyText}>{i18n.t('home.empty_text') || 'Aucun jeu'}</Text>}
