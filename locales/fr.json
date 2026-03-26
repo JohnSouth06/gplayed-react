@@ -10,6 +10,7 @@
     "confirm": "Confirmer",
     "delete": "Supprimer",
     "save": "Enregistrer",
+    "send": "Envoyer",
     "close": "Fermer",
     "selected": "sélectionné(s)",
     "all": "Tous",
@@ -23,9 +24,14 @@
     "choose_platform": "Choisir une plateforme",
     "all_platforms": "Toutes les plateformes",
     "other": "Autre",
+    "search_placeholder": "Rechercher un jeu...",
+    "add_game": "Ajouter un jeu",
+    "confirm_platform": "Confirmer la plateforme",
+    "other_platform": "Autre plateforme...",
     "multiplatform": "Multiplateforme",
     "unknown_price": "Prix inconnu",
-    "unknown": "Inconnu"
+    "unknown": "Inconnu",
+    "select_option": "Sélectionnez une option"
   },
   "status": {
     "not_started": "À faire",
@@ -50,9 +56,15 @@
     "error_empty": "Veuillez remplir tous les champs.",
     "success_msg": "Connexion réussie ! (Token sauvegardé)",
     "error_invalid": "Identifiants incorrects.",
-    "error_network": "Impossible de contacter le serveur."
+    "error_network": "Impossible de contacter le serveur.",
+    "forgot_password": "Mot de passe oublié ?",
+    "reset_title": "Réinitialiser le mot de passe",
+    "reset_sent": "Un email de réinitialisation vous a été envoyé.",
+    "email_required": "Veuillez saisir votre adresse email."
   },
   "home": {
+    "title": "Ma Collection",
+    "greeting": "Bonjour %{name}",
     "tab_physical": "Physique",
     "tab_digital": "Digital",
     "search_placeholder": "Rechercher un jeu...",
@@ -73,6 +85,7 @@
     "error_save": "Impossible de sauvegarder.",
     "label_title": "Titre du jeu",
     "label_platform": "Plateforme",
+    "label_format": "Format du jeu",
     "label_status": "Statut",
     "label_user_rating": "Note Utilisateur",
     "label_metacritic": "Metacritic",
@@ -102,11 +115,31 @@
     "empty_search": "Aucun jeu ne correspond à votre recherche.",
     "delete_confirm_text": "Voulez-vous vraiment retirer ces %{count} jeux de votre liste de souhaits ?",
     "acquire_title": "Ajouter à la collection",
-    "acquire_question": "Dans quel format avez-vous obtenu \"%{game}\" ?",
-    "acquire_physical": "Physique",
-    "acquire_digital": "Digital",
+    "acquire_question": "Voulez-vous ajouter ce jeu à votre collection ?",
+    "acquire_yes": "Oui",
     "acquire_success": "Jeu ajouté à votre liste de souhaits !",
     "acquire_error": "Impossible de mettre à jour le jeu."
+  },
+  "psn": {
+    "title": "Trophées PSN",
+    "sync_button": "Synchroniser",
+    "sync_title": "Synchronisation PSN",
+    "sync_subtitle": "Entrez votre ID PlayStation Network. Limité à 1 fois par heure.",
+    "error_sync": "Erreur de récupération des jeux PSN:",
+    "error_trophy_loading": "Erreur de chargement des trophées.",
+    "psn_id_error": "Veuillez saisir un ID PSN valide.",
+    "sync_placeholder": "Votre ID PSN",
+    "syncing_now": "Synchronisation PSN en cours...",
+    "syncing_success": "Synchronisation réussie.",
+    "sync_wait": "Cela peut prendre plusieurs minutes.",
+    "empty_text": "Aucun jeu PSN synchronisé.",
+    "trophies_not_found": "Aucun trophée trouvé.",
+    "youtube_guide": "Guide",
+    "earned_trophies": "trophées",
+    "platinum": "Platine",
+    "gold": "Or",
+    "silver": "Argent",
+    "bronze": "Bronze"
   },
   "stats": {
     "title": "Statistiques",
@@ -118,12 +151,55 @@
     "completed": "Platinés / 100%",
     "collection_value": "Valeur de la collection",
     "completion_rate": "Taux de complétion",
+    "completion_percent": "de jeux terminés",
     "platform_distribution": "Répartition par plateforme",
     "empty_text": "Ajoutez des jeux à votre collection pour voir vos statistiques."
   },
+  "community": {
+    "title": "Communauté",
+    "empty": "Il n'y a pas encore d'autres membres inscrits.",
+    "member_since": "Membre depuis",
+    "btn_view": "Voir",
+    "btn_following": "Suivi",
+    "btn_follow": "Suivre"
+  },
+  "public_collection": {
+    "title": "Collection de %{name}",
+    "search": "Rechercher dans la collection de %{name}",
+    "empty": "La collection de %{name} est vide."
+  },
   "profile": {
-    "logout_title": "Déconnexion",
-    "logout_question": "Voulez-vous vraiment vous déconnecter ?",
-    "logout_button": "Se déconnecter"
+"logout_title": "Déconnexion",
+  "logout_question": "Voulez-vous vraiment vous déconnecter ?",
+  "logout_button": "Se déconnecter",
+  "member_since_date": "Membre depuis le %{date}",
+  "section_settings": "Paramètres du profil",
+  "label_username": "Nom d'utilisateur",
+  "label_email": "Adresse e-mail",
+  "label_password_new": "Nouveau mot de passe (optionnel)",
+  "password_placeholder": "Laisser vide pour ne pas changer",
+  "button_update": "Mettre à jour",
+  "update_success": "Profil mis à jour !",
+  "update_error": "Erreur lors de la mise à jour.",
+  "section_integrations": "Intégrations",
+  "steam_desc": "Synchronisez vos jeux PC depuis votre compte Steam.",
+  "button_steam": "Importer mes jeux Steam",
+  "section_public": "Profil public",
+  "share_desc": "Partagez votre collection avec vos amis.",
+  "button_share": "Partager mon profil",
+  "section_notifications": "Notifications",
+  "button_notifications": "Activer les alertes de sortie",
+  "section_danger": "Zone de danger",
+  "button_delete_account": "Supprimer mon compte",
+  "delete_confirm_title": "Supprimer le compte",
+  "delete_confirm_text": "ATTENTION : Cette action est irréversible. Toute votre collection sera effacée.",
+  "delete_confirm_button": "Supprimer définitivement"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "release_3_days": "Sortie dans 3 jours !",
+    "release_1_day": "Sortie demain !",
+    "release_today": "C'est le jour J !",
+    "body": "{message} Préparez votre manette pour jouer sur {platform}."
   }
 }

@@ -2,65 +2,105 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import LottieView from 'lottie-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
 
-// Empêche le splash screen natif de disparaître tout de suite
-SplashScreen.preventAutoHideAsync();
+// Empêche le splash screen natif de se cacher tout seul
+SplashScreen.preventAutoHideAsync().catch(() => {
+  /* Évite les erreurs si appelé plusieurs fois */
+});
 
 export default function RootLayout() {
   const animationRef = useRef<LottieView>(null);
+  const fadeAnim = useRef(new Animated.Value(1)).current; 
   const [isAppReady, setIsAppReady] = useState(false);
-  const [isLooping, setIsLooping] = useState(false);
+  const [animationFinished, setAnimationFinished] = useState(false);
+  const [isOverlayVisible, setIsOverlayVisible] = useState(true);
 
   useEffect(() => {
-    // Simulation du temps de chargement de l'application (ex: 3 secondes)
-    // À remplacer par votre vraie logique de chargement (vérification token, polices, etc.)
-    const timer = setTimeout(() => {
-      setIsAppReady(true);
-    }, 3000);
-
-    return () => clearTimeout(timer);
+    async function prepare() {
+      try {
+        // Charge tes données ici (ex: 3 secondes)
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      } catch (e) {
+        console.warn("Erreur de chargement :", e);
+      } finally {
+        setIsAppReady(true);
+      }
+    }
+    prepare();
   }, []);
 
+  // Dès que l'app est prête ET que l'intro est finie, on lance le fondu
+  useEffect(() => {
+    if (isAppReady && animationFinished) {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsOverlayVisible(false);
+      });
+    }
+  }, [isAppReady, animationFinished]);
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#1b1b1b' }}>
-      {/* Tant que l'app n'est pas prête OU que l'intro n'est pas terminée, 
-        on affiche l'animation Lottie 
-      */}
-      {!isAppReady || !isLooping ? (
-        <LottieView
-          ref={animationRef}
-          // Assurez-vous que le chemin vers votre fichier JSON est correct
-          source={require('../assets/animations/splash.json')} 
-          autoPlay
-          loop={isLooping} // Faux au départ pour jouer l'intro (0 à 90) une seule fois
-          onAnimationFinish={() => {
-            if (!isLooping) {
-              setIsLooping(true);
-              // L'intro est finie, on lance la boucle spécifique (frame 45 à 90)
-              animationRef.current?.play(45, 90);
-            }
-          }}
-          style={{ width: '100%', height: '100%' }}
-        />
-      ) : (
-        /* L'application est prête et l'intro est finie, on affiche le contenu */
-        <Stack
-          // Ces options s'appliqueront instantanément à TOUTES tes pages
-          screenOptions={{
-            headerShown: false, // Cache le header natif partout par défaut
-            contentStyle: { backgroundColor: '#1b1b1b' }, // Force le fond noir natif
-            animation: 'slide_from_right', // Ajoute une belle animation fluide de transition
-          }}
-          // Dès que le layout est rendu, on cache définitivement le splash screen natif en arrière-plan
-          onLayout={() => SplashScreen.hideAsync()}
-        >
-          {/* Tu n'as même plus besoin de lister toutes les pages, 
-              Expo les trouvera tout seul, mais on garde l'index pour être sûr */}
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(tabs)" />
-        </Stack>
+    <View 
+      style={styles.container} 
+      // CRITIQUE : Cache le logo natif dès que ce conteneur est prêt
+      onLayout={() => SplashScreen.hideAsync()} 
+    >
+      {/* L'APPLICATION (Toujours présente dessous) */}
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: '#1b1b1b' },
+          animation: 'fade',
+        }}
+      >
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(tabs)" />
+      </Stack>
+
+      {/* L'ANIMATION LOTTIE (Superposée au-dessus) */}
+      {isOverlayVisible && (
+        <Animated.View style={[styles.overlay, { opacity: fadeAnim }]} pointerEvents="none">
+          <LottieView
+            ref={animationRef}
+            // Vérifie bien que ce chemin est correct selon ta structure
+            source={require('../assets/animations/splash.json')}
+            autoPlay
+            resizeMode="contain"
+            loop={false}
+            style={styles.lottie}
+            onAnimationFinish={() => {
+              if (isAppReady) {
+                setAnimationFinished(true);
+              } else {
+                // Relance la boucle de maintien frame 45 à 90
+                animationRef.current?.play(45, 90);
+              }
+            }}
+          />
+        </Animated.View>
       )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#1b1b1b',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#1b1b1b',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999, // Priorité maximale
+  },
+  lottie: {
+    width: '65%',
+    height: '65%',
+  },
+});
