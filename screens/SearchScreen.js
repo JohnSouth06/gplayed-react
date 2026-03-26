@@ -6,6 +6,7 @@ import * as WebBrowser from 'expo-web-browser';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import i18n from '../config/i18n';
+import { scheduleGameReleaseNotifications } from '../utils/notificationHelper';
 
 export default function SearchScreen() {
   const { defaultStatus, defaultFormat } = useLocalSearchParams();
@@ -73,8 +74,8 @@ export default function SearchScreen() {
       const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl)
 
       if (result.type === 'success') startSteamSync(token);
-    } catch (error) { 
-      Alert.alert('Erreur', 'Impossible de joindre Steam.'); 
+    } catch (error) {
+      Alert.alert('Erreur', 'Impossible de joindre Steam.');
     }
   };
 
@@ -85,39 +86,39 @@ export default function SearchScreen() {
       const listRes = await fetch(`${API_BASE}?action=api_steam_games`, { headers });
       const listData = await listRes.json();
       if (!listData.success) throw new Error(listData.error);
-      
-      const games = listData.games; 
+
+      const games = listData.games;
       const total = games.length;
-      
-      if (total === 0) { 
-        setSyncStatus('Votre collection est déjà à jour !'); 
-        setSyncProgress(100); 
-        setTimeout(() => setIsSyncing(false), 2000); 
-        return; 
+
+      if (total === 0) {
+        setSyncStatus('Votre collection est déjà à jour !');
+        setSyncProgress(100);
+        setTimeout(() => setIsSyncing(false), 2000);
+        return;
       }
 
       let processed = 0;
       for (const game of games) {
         setSyncStatus(`Importation: ${game.name}`);
         await fetch(`${API_BASE}?action=api_steam_import_single`, { method: 'POST', headers, body: JSON.stringify(game) });
-        processed++; 
+        processed++;
         setSyncProgress(Math.round((processed / total) * 100));
       }
-      
-      setSyncStatus('Terminé !'); 
+
+      setSyncStatus('Terminé !');
       await fetch(`${API_BASE}?action=api_steam_complete`, { headers });
-      
+
       setTimeout(() => {
         setIsSyncing(false);
         fetchMyGames(); // Rafraîchir les doublons
         Alert.alert(
-          'Synchronisation terminée', 
+          'Synchronisation terminée',
           `${total} jeux PC ont été ajoutés à votre collection digitale !`,
           [{ text: 'Voir ma collection', onPress: () => router.back() }]
         );
       }, 2000);
     } catch (e) {
-      setSyncStatus("Erreur de synchronisation."); 
+      setSyncStatus("Erreur de synchronisation.");
       setTimeout(() => setIsSyncing(false), 3000);
     }
   };
@@ -126,7 +127,7 @@ export default function SearchScreen() {
   const normalizePlatform = (igdbName) => {
     if (!igdbName) return 'Inconnu';
     const lower = igdbName.toLowerCase();
-    
+
     if (lower.includes('playstation 5') || lower === 'ps5') return 'PS5';
     if (lower.includes('playstation 4') || lower === 'ps4') return 'PS4';
     if (lower.includes('playstation 3') || lower === 'ps3') return 'PS3';
@@ -136,8 +137,8 @@ export default function SearchScreen() {
     if (lower.includes('pc') || lower.includes('windows')) return 'PC';
     if (lower.includes('mac')) return 'Mac';
     if (lower.includes('linux')) return 'Linux';
-    
-    return igdbName; 
+
+    return igdbName;
   };
 
   // 2. EXTRACTION DES PLATEFORMES FOURNIES PAR LE PHP
@@ -165,20 +166,20 @@ export default function SearchScreen() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
- 
+
       let rawResults = data.data || data.results || data || [];
       const expandedResults = [];
-      
+
       rawResults.forEach((game, index) => {
         const plats = extractPlatforms(game);
         const baseId = game.id || `temp_${index}`;
-        
+
         if (plats) {
           // Création d'une ligne de résultat pour chaque plateforme trouvée et traduite
           plats.forEach((platName, pIndex) => {
             expandedResults.push({
               ...game,
-              uniqueKey: `${baseId}_${pIndex}`, 
+              uniqueKey: `${baseId}_${pIndex}`,
               singlePlatform: platName
             });
           });
@@ -204,7 +205,7 @@ export default function SearchScreen() {
     // On pré-sélectionne la plateforme traduite
     if (game.singlePlatform && game.singlePlatform !== 'Inconnu') {
       setSelectedPlatform(game.singlePlatform);
-      
+
       if (!availablePlatforms.includes(game.singlePlatform)) {
         setAvailablePlatforms(prev => [...prev, game.singlePlatform]);
       }
@@ -239,18 +240,37 @@ export default function SearchScreen() {
         body: JSON.stringify({
           rawg_id: gameToAdd.id,
           title: gameToAdd.name,
-          platform: selectedPlatform, 
-          status: defaultStatus || 'not_started', 
-          format: defaultFormat || 'physical', 
+          platform: selectedPlatform,
+          status: defaultStatus || 'not_started',
+          format: defaultFormat || 'physical',
           background_image: imageToSave,
           metacritic: gameToAdd.metacritic
         })
       });
-      
+
       const data = await response.json();
       if (data.success) {
         Alert.alert(i18n.t('common.success'), `${gameToAdd.name} (${selectedPlatform}) ${i18n.t('common.game_added')} !`);
-        fetchMyGames(); 
+        fetchMyGames();
+
+        const finalStatus = defaultStatus || 'not_started';
+        if (finalStatus === 'wishlist') {
+          let releaseDate = null;
+          if (gameToAdd.first_release_date) {
+            releaseDate = new Date(gameToAdd.first_release_date * 1000);
+          } else if (gameToAdd.released) {
+            releaseDate = new Date(gameToAdd.released);
+          }
+
+          if (releaseDate) {
+            scheduleGameReleaseNotifications({
+              id: gameToAdd.id,
+              title: gameToAdd.name,
+              release_date: releaseDate
+            });
+          }
+        }
+
       } else {
         Alert.alert(i18n.t('common.error'), data.message || i18n.t('common.error_adding_game'));
       }
@@ -301,9 +321,9 @@ export default function SearchScreen() {
           <Text style={styles.gameTitle} numberOfLines={2}>{item.name}</Text>
           <Text style={styles.gameYear}>{year} • {item.singlePlatform}</Text>
         </View>
-        
-        <TouchableOpacity 
-          style={[styles.addButton, isAlreadyInCollection && styles.addedButton]} 
+
+        <TouchableOpacity
+          style={[styles.addButton, isAlreadyInCollection && styles.addedButton]}
           onPress={() => {
             if (isAlreadyInCollection) {
               Alert.alert(i18n.t('common.already_acquired'), `${i18n.t('common.already_added')} ${item.singlePlatform}.`);
@@ -327,23 +347,23 @@ export default function SearchScreen() {
 
   return (
     <View style={styles.container}>
-      
+
       <View style={styles.headerContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => {
             if (router.canGoBack()) {
               router.back();
             } else {
-              router.navigate('/home'); 
+              router.navigate('/home');
             }
-          }} 
+          }}
           style={styles.backButton}
         >
           <MaterialIcons name="arrow-back" size={28} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{i18n.t('common.add_game')}</Text>
       </View>
-      
+
       <View style={styles.searchBox}>
         <TextInput
           style={styles.searchInput}
@@ -371,7 +391,7 @@ export default function SearchScreen() {
       ) : (
         <FlatList
           data={results}
-          keyExtractor={(item) => item.uniqueKey} 
+          keyExtractor={(item) => item.uniqueKey}
           renderItem={renderResult}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
@@ -384,7 +404,7 @@ export default function SearchScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{i18n.t('common.confirm_platform')}</Text>
             <Text style={styles.modalSubtitle}>{gameToAdd?.name}</Text>
-            
+
             <FlatList
               data={availablePlatforms}
               keyExtractor={(item) => item}
@@ -452,7 +472,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff' },
   searchBox: { marginHorizontal: 16, marginBottom: 20, backgroundColor: '#202020', borderRadius: 50, borderWidth: 1, borderColor: '#333' },
   searchInput: { color: '#fff', paddingHorizontal: 20, height: 50, fontSize: 16 },
-  
+
   // Styles de la section Steam
   steamSection: { marginHorizontal: 16, marginBottom: 20 },
   steamButton: { flexDirection: 'row', backgroundColor: '#171a21', borderWidth: 1, borderColor: '#66c0f4', borderRadius: 50, padding: 14, alignItems: 'center', justifyContent: 'center' },

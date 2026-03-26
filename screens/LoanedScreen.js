@@ -7,6 +7,7 @@ import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { getRegionalPrice } from '../config/currency';
 import i18n from '../config/i18n';
+import { scheduleLoanReminderNotification } from '../utils/notificationHelper';
 
 export default function LoanedScreen() {
   const router = useRouter();
@@ -174,6 +175,7 @@ export default function LoanedScreen() {
       if (data.success) {
         setEditModalVisible(false);
         fetchLoanedGames();
+        scheduleLoanReminderNotification({ ...gameToEdit, loaned_to: editName.trim(), loaned_date: formattedDate });
       } else {
         Alert.alert(i18n.t('common.error'), data.message);
         setIsLoading(false);

@@ -5,6 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import i18n from '../config/i18n';
+import { scheduleGameReleaseNotifications } from '../utils/notificationHelper';
 
 export default function GameDetailScreen() {
   const router = useRouter();
@@ -85,6 +86,15 @@ export default function GameDetailScreen() {
       const data = await response.json();
       if (data.success) {
         Alert.alert(i18n.t('common.success'), i18n.t('gamedetail.success_save'));
+
+        if (status === 'wishlist' && game.release_date) {
+            scheduleGameReleaseNotifications({
+                id: game.id,
+                title: title,
+                release_date: new Date(game.release_date) 
+            });
+        }
+
         router.back();
       } else {
         Alert.alert(i18n.t('common.error'), data.message);
