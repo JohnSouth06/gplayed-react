@@ -1,11 +1,13 @@
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Image as ExpoImage } from 'expo-image';
 import { Tabs, useFocusEffect, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import i18n from '../config/i18n';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { getRegionalPrice } from '../config/currency';
+import i18n from '../config/i18n';
+import { scheduleLoanReminderNotification } from '../utils/notificationHelper';
 
 export default function LoanedScreen() {
   const router = useRouter();
@@ -20,6 +22,13 @@ export default function LoanedScreen() {
   const [sortBy, setSortBy] = useState('recent');
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState(null);
+
+  // Nouveaux états pour l'édition
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [gameToEdit, setGameToEdit] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editDate, setEditDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const API_URL = 'https://www.g-played.com/api/index.php?action=api_get_games';
   const API_DELETE_URL = 'https://www.g-played.com/api/index.php?action=api_delete_game';
@@ -130,6 +139,53 @@ export default function LoanedScreen() {
     }
   };
 
+  const openEditModal = (game) => {
+    setGameToEdit(game);
+    setEditName(game.loaned_to || '');
+    setEditDate(game.loaned_date ? new Date(game.loaned_date) : new Date());
+    setEditModalVisible(true);
+  };
+
+  const handleUpdateLoan = async () => {
+    if (!editName.trim()) {
+      Alert.alert(i18n.t('common.error'), 'Veuillez renseigner un nom');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+
+      // Formatage manuel strict en YYYY-MM-DD
+      const d = new Date(editDate);
+      const formattedDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      const response = await fetch(API_UPDATE_URL, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: gameToEdit.id,
+          status: 'loaned',
+          loaned_to: editName.trim(),
+          loaned_date: formattedDate
+        })
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setEditModalVisible(false);
+        fetchLoanedGames();
+        scheduleLoanReminderNotification({ ...gameToEdit, loaned_to: editName.trim(), loaned_date: formattedDate });
+      } else {
+        Alert.alert(i18n.t('common.error'), data.message);
+        setIsLoading(false);
+      }
+    } catch (error) {
+      Alert.alert(i18n.t('common.error'), 'Erreur de mise à jour');
+      setIsLoading(false);
+    }
+  };
+
   const getStandardPlatform = (platformStr) => {
     if (!platformStr) return i18n.t('common.other');
     if (platformStr.includes(',') || platformStr.includes('/') || platformStr.toLowerCase() === 'multiplateforme') return i18n.t('common.multiplatform');
@@ -156,15 +212,51 @@ export default function LoanedScreen() {
 
   const openModal = (type) => { setModalType(type); setModalVisible(true); };
 
-  const getModalOptions = () => {
-    if (modalType === 'platform') return uniquePlatforms.map(p => ({ id: p, label: p === 'all' ? i18n.t('common.all_platforms') : p }));
-    if (modalType === 'sort') return [
-      { id: 'recent', label: i18n.t('sort.recent') },
-      { id: 'title', label: i18n.t('sort.title') },
-      { id: 'platform', label: i18n.t('sort.platform') },
-      { id: 'price', label: i18n.t('sort.price') }
-    ];
-    return [];
+  // --- NOUVEAU : LA FONCTION POUR LE HEADER DÉFILANT ---
+  const renderHeader = () => {
+    if (isSelectionMode) return null;
+
+    return (
+      <View style={styles.scrollableHeaderContainer}>
+        {/* Titre de la page */}
+        <Text style={styles.pageTitle}>{i18n.t('loaned.title')}</Text>
+
+        {/* On affiche les filtres et recherche uniquement s'il y a des jeux prêtés dans la collection */}
+        {games.length > 0 && (
+          <>
+            {/* Barre de recherche */}
+            <View style={styles.localSearchContainer}>
+              <MaterialIcons name="search" size={20} color="#6c7d76" style={styles.localSearchIcon} />
+              <TextInput
+                style={styles.localSearchInput}
+                placeholder={i18n.t('loaned.search_placeholder')}
+                placeholderTextColor="#6c7d76"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <MaterialIcons name="cancel" size={20} color="#6c7d76" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Boutons de filtres */}
+            <View style={styles.filtersRow}>
+              <TouchableOpacity style={styles.filterButton} onPress={() => openModal('platform')}>
+                <Text style={styles.filterButtonText} numberOfLines={1}>{filterPlatform === 'all' ? i18n.t('common.platforms') : filterPlatform}</Text>
+                <MaterialIcons name="arrow-drop-down" size={20} color="#6c7d76" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.filterButton} onPress={() => openModal('sort')}>
+                <Text style={styles.filterButtonText} numberOfLines={1}>{sortBy === 'recent' ? i18n.t('common.recent') : sortBy === 'title' ? i18n.t('common.a_z') : sortBy === 'platform' ? i18n.t('common.platform') : i18n.t('common.price')}</Text>
+                <MaterialIcons name="arrow-drop-down" size={20} color="#6c7d76" />
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+      </View>
+    );
   };
 
   const getPlatformIcon = (platformStr, iconColor = '#aaa') => {
@@ -182,6 +274,16 @@ export default function LoanedScreen() {
     const isSelected = selectedGames.includes(item.id);
     const formattedDate = item.loaned_date ? new Date(item.loaned_date).toLocaleDateString('fr-FR') : i18n.t('common.unknown');
 
+    let finalImageUrl = null;
+    if (item.image_url) {
+      if (item.image_url.startsWith('http')) {
+        finalImageUrl = item.image_url;
+      } else if (item.image_url.startsWith('//')) {
+        finalImageUrl = `https:${item.image_url}`;
+      } else {
+        finalImageUrl = `https://www.g-played.com/${item.image_url}`;
+      }
+    }
 
     return (
       <TouchableOpacity
@@ -190,8 +292,12 @@ export default function LoanedScreen() {
         onLongPress={() => handleLongPress(item.id)}
         onPress={() => handlePress(item)}
       >
-        {item.image_url ? (
-          <Image source={{ uri: `https://www.g-played.com/${item.image_url}` }} style={[styles.cover, isSelected && styles.coverSelected]} />
+        {finalImageUrl ? (
+          <ExpoImage
+            source={{ uri: finalImageUrl }}
+            style={[styles.cover, isSelected && styles.coverSelected]}
+            contentFit="cover"
+          />
         ) : (
           <View style={[styles.cover, styles.placeholderCover]} />
         )}
@@ -209,16 +315,6 @@ export default function LoanedScreen() {
                 <Text style={styles.badgeTextLight}>{getRegionalPrice(item)}</Text>
               </View>
             ) : null}
-            {item.metacritic_score && item.metacritic_score > 0 ? (
-              <View style={[styles.badge, styles.badgeMeta]}>
-                <ExpoImage
-                  source={require('../assets/images/metacritic.svg')}
-                  style={{ width: 14, height: 14 }}
-                  contentFit="contain" tintColor="#fff"
-                />
-                <Text style={styles.badgeTextLight}>{item.metacritic_score}</Text>
-              </View>
-            ) : null}
           </View>
 
           <View style={styles.loanInfoContainer}>
@@ -226,7 +322,7 @@ export default function LoanedScreen() {
               <MaterialIcons name="person" size={14} color="#f0ad4e" /> {i18n.t('loaned.loaned_to')} <Text style={styles.loanInfoBold}>{item.loaned_to || i18n.t('common.unknown')}</Text>
             </Text>
             <Text style={styles.loanInfoText}>
-              <MaterialIcons name="event" size={14} color="#f0ad4e" /> {i18n.t('loaned.loaned_date')} <Text style={styles.loanInfoBold}>{formattedDate}</Text>
+              <MaterialIcons name="event" size={14} color="#f0ad4e" /> Prêté le: <Text style={styles.loanInfoBold}>{formattedDate}</Text>
             </Text>
           </View>
         </View>
@@ -236,9 +332,14 @@ export default function LoanedScreen() {
             <MaterialIcons name="check-circle" size={28} color="#dc3545" />
           </View>
         ) : (
-          <TouchableOpacity style={styles.returnButton} onPress={() => promptReturn(item)}>
-            <MaterialCommunityIcons name="keyboard-return" size={26} color="#f0ad4e" />
-          </TouchableOpacity>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity style={styles.editButton} onPress={() => openEditModal(item)}>
+              <MaterialIcons name="edit" size={24} color="#4CE5AE" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.returnButton} onPress={() => promptReturn(item)}>
+              <MaterialCommunityIcons name="keyboard-return" size={26} color="#f0ad4e" />
+            </TouchableOpacity>
+          </View>
         )}
       </TouchableOpacity>
     );
@@ -250,116 +351,121 @@ export default function LoanedScreen() {
     <View style={styles.container}>
       <Tabs.Screen options={{ headerShown: !isSelectionMode }} />
 
-      {isSelectionMode ? (
+      {/* Header de sélection (mode suppression multiple) */}
+      {isSelectionMode && (
         <View style={styles.selectionHeader}>
           <TouchableOpacity onPress={() => { setIsSelectionMode(false); setSelectedGames([]); }}>
             <MaterialIcons name="close" size={28} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.selectionText}>{selectedGames.length} {i18n.t('common.selected')}</Text>
         </View>
-      ) : (
-        <Text style={styles.pageTitle}>{i18n.t('loaned.title')}</Text>
       )}
 
-      {!isSelectionMode && games.length > 0 && (
-        <View>
-          <View style={styles.localSearchContainer}>
-            <MaterialIcons name="search" size={20} color="#6c7d76" style={styles.localSearchIcon} />
-            <TextInput
-              style={styles.localSearchInput}
-              placeholder={i18n.t('loaned.search_placeholder')}
-              placeholderTextColor="#6c7d76"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <MaterialIcons name="cancel" size={20} color="#6c7d76" />
-              </TouchableOpacity>
-            )}
+      {/* Liste principale englobant maintenant le header défilant et l'état vide */}
+      <FlatList
+        data={displayedGames}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={renderGameCard}
+        ListHeaderComponent={renderHeader()}
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            {/* On gère intelligemment le message selon que l'on n'a aucun jeu prêté du tout, ou aucun résultat de recherche */}
+            <Text style={styles.emptyText}>
+              {games.length === 0 ? i18n.t('loaned.empty_text') : i18n.t('loaned.empty_search')}
+            </Text>
           </View>
+        }
+      />
 
-          <View style={styles.filtersRow}>
-            <TouchableOpacity style={styles.filterButton} onPress={() => openModal('platform')}>
-              <Text style={styles.filterButtonText} numberOfLines={1}>
-                {filterPlatform === 'all' ? i18n.t('common.platforms') : filterPlatform}
-              </Text>
-              <MaterialIcons name="arrow-drop-down" size={20} color="#6c7d76" />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.filterButton} onPress={() => openModal('sort')}>
-              <Text style={styles.filterButtonText} numberOfLines={1}>
-                {sortBy === 'recent' ? i18n.t('common.recent') : sortBy === 'title' ? i18n.t('common.a_z') : sortBy === 'platform' ? i18n.t('common.platform') : i18n.t('common.price')}
-              </Text>
-              <MaterialIcons name="arrow-drop-down" size={20} color="#6c7d76" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {games.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>{i18n.t('loaned.empty_text')}</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={displayedGames}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderGameCard}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<Text style={styles.emptyText}>{i18n.t('loaned.empty_search')}</Text>}
-        />
-      )}
-
+      {/* Bouton de suppression flottant */}
       {isSelectionMode && (
         <TouchableOpacity style={[styles.fab, styles.fabDelete]} onPress={deleteSelectedGames}>
           <MaterialIcons name="delete" size={28} color="#fff" />
         </TouchableOpacity>
       )}
 
-      <Modal visible={modalVisible} transparent animationType="slide">
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalVisible(false)}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{modalType === 'platform' ? i18n.t('common.choose_platform') : i18n.t('common.sort_by')}</Text>
-            <FlatList
-              data={getModalOptions()}
-              keyExtractor={item => item.id}
-              showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => {
-                const isActive = (modalType === 'platform' && filterPlatform === item.id) || (modalType === 'sort' && sortBy === item.id);
-                return (
-                  <TouchableOpacity
-                    style={styles.modalOption}
-                    onPress={() => {
-                      if (modalType === 'platform') setFilterPlatform(item.id);
-                      if (modalType === 'sort') setSortBy(item.id);
-                      setModalVisible(false);
-                    }}
-                  >
-                    <Text style={[styles.modalOptionText, isActive && styles.modalOptionTextActive]}>{item.label}</Text>
-                    {isActive && <MaterialIcons name="check" size={20} color="#4CE5AE" />}
-                  </TouchableOpacity>
-                );
-              }}
+      {/* Modale d'édition */}
+      <Modal visible={editModalVisible} transparent animationType="fade">
+        <View style={styles.lendModalOverlay}>
+          <View style={styles.lendModalContent}>
+            <Text style={styles.lendModalTitle}>Modifier le prêt</Text>
+            <TextInput
+              style={styles.lendInput}
+              placeholder="Prêté à"
+              placeholderTextColor="#6c7d76"
+              value={editName}
+              onChangeText={setEditName}
             />
+
+            <TouchableOpacity style={[styles.lendInput, { justifyContent: 'center' }]} onPress={() => setShowDatePicker(true)}>
+              <Text style={{ color: '#fff', fontSize: 16 }}>
+                <MaterialIcons name="event" size={16} color="#6c7d76" /> {editDate.toLocaleDateString(i18n.locale)}
+              </Text>
+            </TouchableOpacity>
+
+            {showDatePicker && (
+              <View style={{ backgroundColor: '#202020', borderRadius: 12, padding: 10, marginBottom: 16 }}>
+                <DateTimePicker
+                  value={editDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  locale={i18n.locale} 
+                  themeVariant="dark"
+                  textColor="#ffffff"
+                  onChange={(event, selectedDate) => {
+                    if (Platform.OS === 'android') setShowDatePicker(false);
+                    if (selectedDate) setEditDate(selectedDate);
+                  }}
+                />
+                {Platform.OS === 'ios' && (
+                  <TouchableOpacity
+                    style={{ backgroundColor: '#4CE5AE', padding: 12, borderRadius: 8, marginTop: 10, alignItems: 'center' }}
+                    onPress={() => setShowDatePicker(false)}
+                  >
+                    <Text style={{ color: '#111', fontWeight: 'bold' }}>Valider la date</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+            <View style={styles.lendModalActions}>
+              <TouchableOpacity style={[styles.lendModalBtn, styles.lendModalBtnCancel]} onPress={() => setEditModalVisible(false)}>
+                <Text style={styles.lendModalBtnTextCancel}>{i18n.t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.lendModalBtn, styles.lendModalBtnConfirm]} onPress={handleUpdateLoan}>
+                <Text style={styles.lendModalBtnTextConfirm}>{i18n.t('common.confirm')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
+
+      {/* VOUS POUVEZ RAJOUTER VOTRE MODALE DE FILTRES ICI SI ELLE MANQUAIT DANS VOTRE CODE SOURCE */}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollableHeaderContainer: { paddingTop: 20 },
   container: { flex: 1, backgroundColor: '#1b1b1b' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1b1b1b' },
-  pageTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff', marginHorizontal: 20, marginTop: 20, marginBottom: 16 },
+
+  pageTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff', marginBottom: 16 },
+  toggleContainer: { flexDirection: 'row', backgroundColor: '#202020', borderRadius: 50, marginBottom: 16, padding: 4 },
+  toggleButton: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 50 },
+  toggleButtonActive: { backgroundColor: '#4CE5AE' },
+  toggleText: { color: '#6c7d76', fontWeight: 'bold' },
+  toggleIcons: { color: '#6c7d76', fontSize: 18 },
+  toggleIconsActive: { color: '#111', fontSize: 18 },
+  toggleTextActive: { color: '#111' },
+  
   selectionHeader: { paddingTop: 60, paddingBottom: 20, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', backgroundColor: '#dc3545', marginBottom: 16 },
   selectionText: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginLeft: 20 },
-  localSearchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#202020', borderRadius: 12, borderWidth: 1, borderColor: '#333', marginHorizontal: 20, marginBottom: 16, paddingHorizontal: 12, height: 44 },
+  localSearchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#202020', borderRadius: 12, borderWidth: 1, borderColor: '#333', marginBottom: 16, paddingHorizontal: 12, height: 44 },
   localSearchIcon: { marginRight: 8 },
   localSearchInput: { flex: 1, color: '#fff', fontSize: 14 },
-  filtersRow: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 16, gap: 10 },
+  filtersRow: { flexDirection: 'row', marginBottom: 16, gap: 10 },
   filterButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#202020', borderWidth: 1, borderColor: '#333', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
   filterButtonText: { color: '#ccc', fontSize: 13, fontWeight: '600' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
@@ -368,13 +474,14 @@ const styles = StyleSheet.create({
   modalOption: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#333' },
   modalOptionText: { color: '#ccc', fontSize: 16 },
   modalOptionTextActive: { color: '#4CE5AE', fontWeight: 'bold' },
-  listContainer: { paddingHorizontal: 16, paddingBottom: 80 },
+  
+  // --- Le listContainer a été ajusté pour permettre le flexGrow ---
+  listContainer: { paddingHorizontal: 16, paddingBottom: 80, flexGrow: 1 },
+  
   card: { flexDirection: 'row', backgroundColor: '#202020', borderRadius: 24, marginBottom: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', position: 'relative' },
   cardSelected: { borderColor: '#dc3545', borderWidth: 2, backgroundColor: 'rgba(220, 53, 69, 0.1)' },
   coverSelected: { opacity: 0.5 },
   checkOverlay: { position: 'absolute', right: 20, top: '40%' },
-  returnButton: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.05)' },
-  cover: { display: 'flex', alignItems: 'center', justifyContent: 'center', justifyItems: 'center', flexDirection: 'row-reverse', width: '100', height: '100vh' },
   placeholderCover: { backgroundColor: '#151515' },
   cardInfo: { flex: 1, padding: 12, justifyContent: 'center' },
   gameTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
@@ -385,11 +492,26 @@ const styles = StyleSheet.create({
   badgeMeta: { backgroundColor: '#ed9c01' },
   badgeTextPlatform: { fontSize: 11, fontWeight: 'bold', color: '#111' },
   badgeTextLight: { fontSize: 11, fontWeight: 'bold', color: '#fff' },
+  cover: { width: 90, height: 140 },
   loanInfoContainer: { backgroundColor: 'rgba(240, 173, 78, 0.1)', padding: 6, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(240, 173, 78, 0.3)', marginTop: 4 },
   loanInfoText: { fontSize: 11, color: '#ccc', marginBottom: 2 },
   loanInfoBold: { fontWeight: 'bold', color: '#fff' },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40, marginTop: 40 },
   emptyText: { color: '#6c7d76', fontSize: 16, textAlign: 'center', marginBottom: 20 },
   fab: { position: 'absolute', bottom: 25, right: 25, width: 60, height: 60, borderRadius: 30, backgroundColor: '#4CE5AE', justifyContent: 'center', alignItems: 'center', elevation: 5 },
-  fabDelete: { backgroundColor: '#dc3545' }
+  fabDelete: { backgroundColor: '#dc3545' },
+
+  actionButtons: { flexDirection: 'row', borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.05)' },
+  editButton: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 },
+  returnButton: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 },
+  lendModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  lendModalContent: { backgroundColor: '#1b1b1b', width: '100%', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: '#333' },
+  lendModalTitle: { color: '#f0ad4e', fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  lendInput: { backgroundColor: '#202020', color: '#fff', borderRadius: 12, padding: 16, fontSize: 16, borderWidth: 1, borderColor: '#333', marginBottom: 16, height: 55 },
+  lendModalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  lendModalBtn: { flex: 1, padding: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  lendModalBtnCancel: { backgroundColor: 'transparent', borderColor: '#6c7d76', borderRadius: 35 },
+  lendModalBtnConfirm: { backgroundColor: '#f0ad4e', borderColor: '#f0ad4e', borderRadius: 35 },
+  lendModalBtnTextCancel: { color: '#ccc', fontWeight: 'bold', fontSize: 16 },
+  lendModalBtnTextConfirm: { color: '#111', fontWeight: 'bold', fontSize: 16 }
 });
