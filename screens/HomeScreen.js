@@ -421,14 +421,17 @@ export default function HomeScreen() {
         data={displayedGames}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderGameCard}
-        ListHeaderComponent={renderHeader()} 
+        ListHeaderComponent={renderHeader()}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={<Text style={styles.emptyText}>{i18n.t('home.empty_text')}</Text>}
       />
 
-      {/* Bouton flottant d'ajout */}
-      {!isSelectionMode && (
+      {isSelectionMode ? (
+        <TouchableOpacity style={[styles.fab, styles.fabDelete]} onPress={deleteSelectedGames}>
+          <MaterialIcons name="delete" size={28} color="#fff" />
+        </TouchableOpacity>
+      ) : (
         <TouchableOpacity
           style={styles.fab}
           onPress={() => router.push({ pathname: '/search', params: { defaultStatus: 'not_started', defaultFormat: activeFormat } })}
@@ -589,12 +592,12 @@ const styles = StyleSheet.create({
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   gameStatus: { fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase' },
   emptyText: { color: '#6c7d76', textAlign: 'center', marginTop: 40, fontSize: 16 },
-  fab: { position: 'absolute', bottom: 25, right: 25, width: 60, height: 60, borderRadius: 30, backgroundColor: '#4CE5AE', justifyContent: 'center', alignItems: 'center', elevation: 5 },
+  fab: { position: 'absolute', bottom: 25, right: 25, width: 60, height: 60, borderRadius: 30, backgroundColor: '#4CE5AE', justifyContent: 'center', alignItems: 'center', elevation: 5, zIndex: 10 },
   fabText: { color: '#111', fontSize: 32, fontWeight: 'bold', lineHeight: 34 },
   fabDelete: { backgroundColor: '#dc3545' },
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   quickLendButton: { backgroundColor: 'rgba(240, 173, 78, 0.1)', padding: 6, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(240, 173, 78, 0.3)' },
-  
+
   lendModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   lendModalContent: { backgroundColor: '#1b1b1b', width: '100%', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: '#333' },
   lendModalTitle: { color: '#f0ad4e', fontSize: 20, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },

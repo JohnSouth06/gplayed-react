@@ -132,7 +132,7 @@ export default function WishlistScreen() {
       const data = await response.json();
       if (data.success) {
         Alert.alert(i18n.t('common.success'), i18n.t('wishlist.acquire_success', { name: game.title }));
-        fetchWishlist(); 
+        fetchWishlist();
       } else {
         Alert.alert(i18n.t('common.error'), data.message);
         setIsLoading(false);
@@ -164,7 +164,7 @@ export default function WishlistScreen() {
       if (sortBy === 'title') return a.title.localeCompare(b.title);
       if (sortBy === 'platform') return getStandardPlatform(a.platform).localeCompare(getStandardPlatform(b.platform));
       if (sortBy === 'price') return (b.estimated_price || 0) - (a.estimated_price || 0);
-      return b.id - a.id; 
+      return b.id - a.id;
     });
 
     return result;
@@ -267,16 +267,16 @@ export default function WishlistScreen() {
     const isSelected = selectedGames.includes(item.id);
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.card, isSelected && styles.cardSelected]}
         activeOpacity={0.7}
         onLongPress={() => handleLongPress(item.id)}
         onPress={() => handlePress(item)}
       >
         {item.image_url ? (
-          <Image 
-            source={{ uri: item.image_url.startsWith('http') ? item.image_url : `https://www.g-played.com/${item.image_url}` }} 
-            style={[styles.cover, isSelected && styles.coverSelected]} 
+          <Image
+            source={{ uri: item.image_url.startsWith('http') ? item.image_url : `https://www.g-played.com/${item.image_url}` }}
+            style={[styles.cover, isSelected && styles.coverSelected]}
           />
         ) : (
           <View style={[styles.cover, styles.placeholderCover]} />
@@ -338,12 +338,19 @@ export default function WishlistScreen() {
         ListEmptyComponent={<Text style={styles.emptyText}>{i18n.t('home.empty_text') || 'Aucun jeu'}</Text>}
       />
 
-      {/* Bouton de suppression flottant */}
-      {isSelectionMode && (
+
+
+      {/* Boutons flottants : Suppression (mode sélection) ou Ajout (mode normal) */}
+      {isSelectionMode ? (
         <TouchableOpacity style={[styles.fab, styles.fabDelete]} onPress={deleteSelectedGames}>
           <MaterialIcons name="delete" size={28} color="#fff" />
         </TouchableOpacity>
+      ) : (
+        <TouchableOpacity style={styles.fab} onPress={() => router.push({ pathname: '/search', params: { defaultStatus: 'wishlist' } })}>
+          <Text style={styles.fabText}>+</Text>
+        </TouchableOpacity>
       )}
+
 
       <Modal visible={modalVisible} transparent animationType="slide">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalVisible(false)}>
@@ -351,15 +358,15 @@ export default function WishlistScreen() {
             <Text style={styles.modalTitle}>
               {modalType === 'platform' ? i18n.t('common.choose_platform') : modalType === 'sort' ? i18n.t('common.sort_by') : ''}
             </Text>
-            <FlatList 
+            <FlatList
               data={getModalOptions()}
               keyExtractor={item => item.id}
               showsVerticalScrollIndicator={false}
-              renderItem={({item}) => {
+              renderItem={({ item }) => {
                 const isActive = (modalType === 'platform' && filterPlatform === item.id) || (modalType === 'sort' && sortBy === item.id);
                 return (
-                  <TouchableOpacity 
-                    style={styles.modalOption} 
+                  <TouchableOpacity
+                    style={styles.modalOption}
                     onPress={() => {
                       if (modalType === 'platform') setFilterPlatform(item.id);
                       if (modalType === 'sort') setSortBy(item.id);
@@ -427,7 +434,7 @@ const styles = StyleSheet.create({
   emptyText: { color: '#6c7d76', fontSize: 16, textAlign: 'center', marginBottom: 20 },
   searchButton: { backgroundColor: 'rgba(76, 229, 174, 0.1)', borderColor: '#4CE5AE', borderWidth: 1, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 50 },
   searchButtonText: { color: '#4CE5AE', fontWeight: 'bold', fontSize: 16 },
-  fab: { position: 'absolute', bottom: 25, right: 25, width: 60, height: 60, borderRadius: 30, backgroundColor: '#4CE5AE', justifyContent: 'center', alignItems: 'center', elevation: 5 },
+  fab: { position: 'absolute', bottom: 25, right: 25, width: 60, height: 60, borderRadius: 30, backgroundColor: '#4CE5AE', justifyContent: 'center', alignItems: 'center', elevation: 5, zIndex: 10 },
   fabText: { color: '#111', fontSize: 32, fontWeight: 'bold', lineHeight: 34 },
   fabDelete: { backgroundColor: '#dc3545' }
 });
