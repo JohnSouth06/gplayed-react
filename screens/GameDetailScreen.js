@@ -1,9 +1,8 @@
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
-import React, { useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import i18n from '../config/i18n';
 import { scheduleGameReleaseNotifications } from '../utils/notificationHelper';
 
@@ -118,6 +117,36 @@ export default function GameDetailScreen() {
     ? (game.image_url.startsWith('http') ? game.image_url : `https://www.g-played.com/${game.image_url}`)
     : null;
 
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const animateButtonIn = () => {
+    Animated.spring(scaleAnim, { toValue: 0.95, useNativeDriver: true }).start();
+  };
+  const animateButtonOut = () => {
+    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
+  };
+
+  const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const openModal = () => {
+    setPlatformModalVisible(true);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closeModal = () => {
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => setPlatformModalVisible(false));
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
       <View style={styles.header}>
@@ -217,37 +246,43 @@ export default function GameDetailScreen() {
           textAlignVertical="top"
         />
 
-        <TouchableOpacity style={styles.saveButton} onPress={handleUpdate} disabled={isSaving}>
+        <AnimatedTouchableOpacity
+          style={[styles.saveButton, { transform: [{ scale: scaleAnim }] }]}
+          onPress={handleUpdate}
+          onPressIn={animateButtonIn}
+          onPressOut={animateButtonOut}
+          disabled={isSaving}
+        >
           {isSaving ? <ActivityIndicator color="#111" /> : <Text style={styles.saveButtonText}>{i18n.t('common.save')}</Text>}
-        </TouchableOpacity>
+        </AnimatedTouchableOpacity>
       </View>
 
       <Modal visible={isPlatformModalVisible} transparent animationType="slide">
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setPlatformModalVisible(false)}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Choisir une plateforme</Text>
-            <FlatList
-              data={availablePlatforms}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) => {
-                const isSelected = selectedPlatform === item;
-                return (
-                  <TouchableOpacity style={styles.modalOption} onPress={() => setSelectedPlatform(item)}>
-                    <Text style={[styles.modalOptionText, isSelected && { color: '#4CE5AE', fontWeight: 'bold' }]}>{item}</Text>
-                    {/* Remplacement des icônes par des boutons radio */}
-                    <MaterialIcons name={isSelected ? "radio-button-checked" : "radio-button-unchecked"} size={24} color={isSelected ? "#4CE5AE" : "#6c7d76"} />
-                  </TouchableOpacity>
-                )
-              }}
-              style={{ maxHeight: 300 }}
-              showsVerticalScrollIndicator={false}
-            />
-            {/* ... code pour newPlatformContainer inchangé ... */}
-            <TouchableOpacity style={[styles.saveButton, { marginTop: 20 }]} onPress={() => setPlatformModalVisible(false)}>
-              <Text style={styles.saveButtonText}>Valider</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
+        <Animated.View style={[styles.modalOverlay, { opacity: fadeAnim }]}>
+          <TouchableOpacity style={{ flex: 1, justifyContent: 'flex-end' }} activeOpacity={1} onPress={closeModal}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Choisir une plateforme</Text>
+              <FlatList
+                data={availablePlatforms}
+                keyExtractor={(item) => item}
+                renderItem={({ item }) => {
+                  const isSelected = selectedPlatform === item;
+                  return (
+                    <TouchableOpacity style={styles.modalOption} onPress={() => setSelectedPlatform(item)}>
+                      <Text style={[styles.modalOptionText, isSelected && { color: '#4CE5AE', fontWeight: 'bold' }]}>{item}</Text>
+                      <MaterialIcons name={isSelected ? "radio-button-checked" : "radio-button-unchecked"} size={24} color={isSelected ? "#4CE5AE" : "#6c7d76"} />
+                    </TouchableOpacity>
+                  )
+                }}
+                style={{ maxHeight: 300 }}
+                showsVerticalScrollIndicator={false}
+              />
+              <TouchableOpacity style={[styles.saveButton, { marginTop: 20 }]} onPress={() => setPlatformModalVisible(false)}>
+                <Text style={styles.saveButtonText}>Valider</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
       </Modal>
 
     </ScrollView>
