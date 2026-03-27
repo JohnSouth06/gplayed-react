@@ -21,10 +21,22 @@ export default function ProfileScreen() {
   const [language, setLanguage] = useState('fr');
   const [localAvatar, setLocalAvatar] = useState(null);
 
-  // États Steam
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncStatus, setSyncStatus] = useState('');
-  const [syncProgress, setSyncProgress] = useState(0);
+  const formatMemberSince = (dateString) => {
+    if (!dateString) return 'N/A';
+
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
+
+    const isFr = i18n.locale && i18n.locale.includes('fr');
+
+    if (isFr) {
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${month}/${year}`; // Résultat : 01/2026
+    }
+
+    return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(date); // Résultat : April 2026
+  };
 
   // URL API
   const API_BASE = 'https://www.g-played.com/api/index.php';
@@ -77,7 +89,7 @@ export default function ProfileScreen() {
       formData.append('email', email);
       formData.append('language', language);
       if (password) formData.append('new_password', password);
-      
+
       if (localAvatar) {
         const filename = localAvatar.split('/').pop();
         const match = /\.(\w+)$/.exec(filename);
@@ -125,16 +137,16 @@ export default function ProfileScreen() {
       i18n.t('profile.delete_confirm_text'),
       [
         { text: i18n.t('common.cancel'), style: "cancel" },
-        { 
-          text: i18n.t('profile.delete_confirm_button'), 
+        {
+          text: i18n.t('profile.delete_confirm_button'),
           style: "destructive",
           onPress: async () => {
             const token = await SecureStore.getItemAsync('userToken');
-            await fetch(`${API_BASE}?action=api_delete_account`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }});
+            await fetch(`${API_BASE}?action=api_delete_account`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
             await SecureStore.deleteItemAsync('userToken');
             await SecureStore.deleteItemAsync('userData');
             router.replace('/');
-          } 
+          }
         }
       ]
     );
@@ -143,11 +155,12 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     Alert.alert(i18n.t('profile.logout_title'), i18n.t('profile.logout_question'), [
       { text: i18n.t('common.cancel'), style: "cancel" },
-      { text: i18n.t('profile.logout_button'), style: "destructive", onPress: async () => {
+      {
+        text: i18n.t('profile.logout_button'), style: "destructive", onPress: async () => {
           await SecureStore.deleteItemAsync('userToken');
           await SecureStore.deleteItemAsync('userData');
           router.replace('/');
-        } 
+        }
       }
     ]);
   };
@@ -191,27 +204,29 @@ export default function ProfileScreen() {
   if (localAvatar) displayAvatar = localAvatar;
   else if (user?.avatar) displayAvatar = user.avatar.startsWith('http') ? user.avatar : `https://www.g-played.com/${user.avatar}`;
 
-  const memberSince = user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A';
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <MaterialIcons name="arrow-back-ios" size={24} color="#fff" />
         </TouchableOpacity>
-        
+
         <TouchableOpacity onPress={pickAvatar} style={styles.avatarContainer}>
           <Image source={{ uri: displayAvatar }} style={styles.avatar} />
           <View style={styles.avatarEditBadge}><MaterialIcons name="edit" size={14} color="#111" /></View>
         </TouchableOpacity>
-        
+
         <Text style={styles.username}>{user.username}</Text>
         <Text style={styles.email}>{user.email}</Text>
-        <Text style={styles.memberSince}>{i18n.t('profile.member_since_date', { date: memberSince })}</Text>
+        <Text style={styles.memberSince}>
+          {i18n.locale.includes('fr')
+            ? `Membre depuis le ${formatMemberSince(user?.created_at)}`
+            : `Member since ${formatMemberSince(user?.created_at)}`}
+        </Text>
       </View>
 
       <ScrollView style={styles.scrollContent} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{i18n.t('profile.section_settings')}</Text>
           <Text style={styles.label}>{i18n.t('profile.label_username')}</Text>
@@ -243,7 +258,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={[styles.section, styles.dangerZone]}>
-          <Text style={[styles.sectionTitle, {color: '#dc3545'}]}>{i18n.t('profile.section_danger')}</Text>
+          <Text style={[styles.sectionTitle, { color: '#dc3545' }]}>{i18n.t('profile.section_danger')}</Text>
           <TouchableOpacity style={styles.dangerButtonOutline} onPress={handleLogout}>
             <Text style={styles.dangerButtonText}>{i18n.t('profile.logout_button')}</Text>
           </TouchableOpacity>

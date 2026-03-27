@@ -21,6 +21,23 @@ export default function PublicProfileScreen({ username, avatarUrl }) {
     const [modalVisible, setModalVisible] = useState(false);
     const [modalType, setModalType] = useState(null);
 
+    const formatMemberSince = (dateString) => {
+        if (!dateString) return 'N/A';
+
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return 'N/A';
+
+        const isFr = i18n.locale && i18n.locale.includes('fr');
+
+        if (isFr) {
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${month}/${year}`; // Résultat : 01/2026
+        }
+
+        return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(date); // Résultat : April 2026
+    };
+
     // URL ciblée sur la collection publique de l'utilisateur
     const API_URL = `https://www.g-played.com/api/index.php?action=api_get_public_collection&username=${username}`;
     const initial = username ? username.charAt(0).toUpperCase() : '?';
@@ -42,6 +59,7 @@ export default function PublicProfileScreen({ username, avatarUrl }) {
             if (data.success) {
                 setGames(data.games || []);
             }
+            
         } catch (error) {
             console.error(error);
         } finally {
@@ -319,7 +337,7 @@ export default function PublicProfileScreen({ username, avatarUrl }) {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#1b1b1b' },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1b1b1b' },
-    
+
     // Header Fixe
     header: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginTop: 60, marginBottom: 10 },
     backButton: { marginRight: 16 },
@@ -328,12 +346,8 @@ const styles = StyleSheet.create({
     headerAvatarPlaceholder: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#4CE5AE', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
     headerAvatarInitial: { fontSize: 20, fontWeight: 'bold', color: '#111' },
     pageTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff', flexShrink: 1 },
-    
-    // NOUVEAU STYLE : Header Scrollable
-    scrollableHeaderContainer: {
-        paddingTop: 10,
-        paddingBottom: 10,
-    },
+
+    scrollableHeaderContainer: { paddingTop: 10,  paddingBottom: 10, },
 
     toggleContainer: { flexDirection: 'row', backgroundColor: '#202020', borderRadius: 50, marginHorizontal: 20, marginBottom: 16, padding: 4 },
     toggleButton: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 50 },
@@ -348,9 +362,9 @@ const styles = StyleSheet.create({
     filtersRow: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 16, gap: 10 },
     filterButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#202020', borderWidth: 1, borderColor: '#333', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
     filterButtonText: { color: '#ccc', fontSize: 13, fontWeight: '600' },
-    
+
     listContainer: { paddingHorizontal: 16, paddingBottom: 40, flexGrow: 1 }, // flexGrow ajouté pour un comportement scrollable plus sain
-    
+
     card: { flexDirection: 'row', backgroundColor: '#202020', borderRadius: 24, marginBottom: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
     cover: { width: 100, height: '100%' },
     placeholderCover: { backgroundColor: '#151515' },
