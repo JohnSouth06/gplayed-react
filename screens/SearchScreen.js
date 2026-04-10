@@ -268,6 +268,9 @@ export default function SearchScreen() {
     setPlatformModalVisible(false);
     setAddingId(gameToAdd.uniqueKey);
 
+    // RÉCUPÉRATION DE TOUTES LES PLATEFORMES DU JEU POUR LA BDD
+    const allPlatforms = extractPlatforms(gameToAdd).join(', ');
+
     let imageToSave = gameToAdd.background_image || (gameToAdd.cover ? gameToAdd.cover.url : null);
     if (imageToSave && imageToSave.startsWith('//')) {
       imageToSave = `https:${imageToSave}`;
@@ -277,14 +280,12 @@ export default function SearchScreen() {
       const token = await SecureStore.getItemAsync('userToken');
       const response = await fetch(API_SAVE_URL, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rawg_id: gameToAdd.id,
           title: gameToAdd.name,
           platform: selectedPlatform,
+          platforms_list: allPlatforms, // ENVOI DE LA LISTE COMPLÈTE
           status: defaultStatus || 'not_started',
           format: defaultFormat || 'physical',
           background_image: imageToSave,

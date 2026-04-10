@@ -2,7 +2,7 @@ import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import i18n from '../config/i18n';
 import { scheduleGameReleaseNotifications } from '../utils/notificationHelper';
@@ -10,70 +10,27 @@ import { scheduleGameReleaseNotifications } from '../utils/notificationHelper';
 export default function GameDetailScreen() {
   const router = useRouter();
   const { gameData } = useLocalSearchParams();
+  
   const game = gameData ? JSON.parse(gameData) : null;
+
+  // --- GESTION DES PLATEFORMES DYNAMIQUE (Depuis la BDD) ---
+  const [selectedPlatform, setSelectedPlatform] = useState(game?.platform || '');
+  
+  // On utilise platforms_list s'il existe, sinon on garde la plateforme actuelle
+  const [availablePlatforms, setAvailablePlatforms] = useState(() => {
+    if (game?.platforms_list) {
+      return game.platforms_list.split(',').map(p => p.trim());
+    }
+    return [game?.platform].filter(Boolean);
+  });
+
+  const [isPlatformModalVisible, setPlatformModalVisible] = useState(false);
 
   const title = game?.title || 'Titre inconnu';
   const genres = game?.genres || '';
 
   // --- GESTION DU FORMAT (Physique / Digital) ---
   const [format, setFormat] = useState(game?.format || 'physical');
-
-  // --- GESTION DES PLATEFORMES ---
-  const [selectedPlatform, setSelectedPlatform] = useState(game?.platform || '');
-  const [availablePlatforms, setAvailablePlatforms] = useState([game?.platform].filter(Boolean));
-  const [isPlatformModalVisible, setPlatformModalVisible] = useState(false);
-
-  // Effet pour charger les plateformes disponibles (comme sur le site)
-  useEffect(() => {
-    const fetchGamePlatforms = async () => {
-      // 1. Vérifier si l'API nous a déjà donné les plateformes dans l'objet 'game'
-      // Vérifiez si votre API utilise 'platforms', 'all_platforms' ou 'possible_platforms'
-      if (game?.all_platforms) {
-        const plats = typeof game.all_platforms === 'string' 
-          ? game.all_platforms.split(',').map(p => p.trim()) 
-          : game.all_platforms;
-        setAvailablePlatforms([...new Set(plats)]);
-        return;
-      }
-
-      // 2. Si non, on interroge l'API de recherche (IGDB) pour récupérer les plateformes réelles
-      // On utilise le titre ou le rawg_id (id IGDB) si disponible
-      try {
-        const token = await SecureStore.getItemAsync('userToken');
-        const searchTerm = game.title;
-        const response = await fetch(`https://www.g-played.com/api/index.php?action=api_search_igdb&q=${encodeURIComponent(searchTerm)}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await response.json();
-        const results = data.data || data.results || [];
-        
-        // On cherche le jeu correspondant dans les résultats
-        const matchingGame = results.find(r => r.id == game.rawg_id || r.name.toLowerCase() === game.title.toLowerCase());
-        
-        if (matchingGame && matchingGame.platforms) {
-          // On utilise la même logique de normalisation que dans SearchScreen
-          const extracted = matchingGame.platforms.map(p => {
-            const name = typeof p === 'object' ? p.name : p;
-            // Normalisation rapide (identique à votre SearchScreen)
-            if (name.includes('PlayStation 5')) return 'PS5';
-            if (name.includes('PlayStation 4')) return 'PS4';
-            if (name.includes('Xbox Series')) return 'Xbox Series';
-            if (name.includes('Nintendo Switch')) return 'Switch';
-            if (name.includes('PC')) return 'PC';
-            return name;
-          });
-          
-          const uniquePlats = [...new Set([...extracted, game.platform])].filter(Boolean);
-          setAvailablePlatforms(uniquePlats);
-        }
-      } catch (error) {
-        console.error("Erreur lors de la récupération des plateformes IGDB:", error);
-      }
-    };
-
-    fetchGamePlatforms();
-  }, [game]);
-
   const [status, setStatus] = useState(game?.status || 'not_started');
   const [rating, setRating] = useState(game?.user_rating ? game.user_rating.toString() : '');
   const [metacritic, setMetacritic] = useState(game?.metacritic_score ? game.metacritic_score.toString() : '');
