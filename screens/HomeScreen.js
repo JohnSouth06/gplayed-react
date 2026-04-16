@@ -137,12 +137,19 @@ export default function HomeScreen() {
   const fetchGames = async () => {
     try {
       const token = await SecureStore.getItemAsync('userToken');
-      if (!token) return;
       const response = await fetch(API_URL, { headers: { 'Authorization': `Bearer ${token}` } });
-      const data = await response.json();
+
+      // 1. Récupérer la réponse sous forme de texte
+      const rawText = await response.text();
+
+      // 2. L'afficher dans vos logs pour voir l'erreur PHP (le fameux "<")
+      console.log("RETOUR SERVEUR :", rawText);
+
+      // 3. Essayer de parser manuellement
+      const data = JSON.parse(rawText);
       if (data.success) setGames(data.data);
     } catch (error) {
-      console.error(error);
+      console.error("Détail de l'erreur :", error);
     } finally {
       setIsLoading(false);
     }
