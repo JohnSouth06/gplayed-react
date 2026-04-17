@@ -6,6 +6,7 @@
     "already_added": "You have already added this game on:",
     "error": "Error",
     "network_error": "Network Error",
+    "error_adding_game":"Impossible to add the game.",
     "cancel": "Cancel",
     "send": "Cancel",
     "confirm": "Confirm",

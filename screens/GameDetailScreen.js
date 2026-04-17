@@ -7,7 +7,6 @@ import { ActivityIndicator, Alert, FlatList, Modal, ScrollView, StyleSheet, Text
 import i18n from '../config/i18n';
 import { scheduleGameReleaseNotifications } from '../utils/notificationHelper';
 
-// Composant utilitaire pour les lignes d'informations
 const DetailRow = ({ label, value }) => {
   if (!value) return null;
   return (
@@ -49,6 +48,22 @@ export default function GameDetailScreen() {
   const [comment, setComment] = useState(game?.comment || '');
 
   const [isSaving, setIsSaving] = useState(false);
+
+  const [isImageViewerVisible, setImageViewerVisible] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
+  const screenshotArray = React.useMemo(() => {
+    if (!game?.screenshots) return [];
+    const rawArray = Array.isArray(game.screenshots)
+      ? game.screenshots
+      : game.screenshots.split(',').map(s => s.trim()).filter(s => s !== "");
+
+    return rawArray.map(url => {
+      if (url.startsWith('http')) return url;
+      const cleanPath = url.startsWith('/') ? url.substring(1) : url;
+      return `https://www.g-played.com/${cleanPath}`;
+    });
+  }, [game?.screenshots]);
 
   const API_UPDATE_URL = 'https://www.g-played.com/api/index.php?action=api_update_game';
 
@@ -260,30 +275,35 @@ export default function GameDetailScreen() {
                 <Text style={styles.sectionLabel}>{i18n.t('gamedetail.label_screenshots')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.screenshotList}>
                   {(() => {
-                    // 1. On transforme la donnée en tableau proprement, qu'elle soit déjà un tableau ou une chaîne
+                    // 1. On transforme la donnée en tableau proprement
                     const screenshotArray = Array.isArray(game.screenshots)
                       ? game.screenshots
                       : game.screenshots.split(',').map(s => s.trim()).filter(s => s !== "");
 
-                    // 2. On affiche chaque image
+                    // 2. On affiche chaque image dans un bouton cliquable
                     return screenshotArray.map((url, index) => {
-                      // Construction propre de l'URL
                       let finalUrl = url;
                       if (!url.startsWith('http')) {
-                        // On s'assure qu'il n'y a pas de double slash //
                         const cleanPath = url.startsWith('/') ? url.substring(1) : url;
                         finalUrl = `https://www.g-played.com/${cleanPath}`;
                       }
 
                       return (
-                        <ExpoImage
+                        <TouchableOpacity
                           key={index}
-                          source={{ uri: finalUrl }}
-                          style={styles.screenshotItem}
-                          contentFit="cover"
-                          cachePolicy="memory-disk"
-                          transition={200}
-                        />
+                          onPress={() => {
+                            setSelectedImageIndex(index);
+                            setImageViewerVisible(true);
+                          }}
+                        >
+                          <ExpoImage
+                            source={{ uri: finalUrl }}
+                            style={styles.screenshotItem}
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                            transition={200}
+                          />
+                        </TouchableOpacity>
                       );
                     });
                   })()}
@@ -318,6 +338,41 @@ export default function GameDetailScreen() {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={isImageViewerVisible} transparent={false} animationType="fade">
+        <View style={styles.fullScreenContainer}>
+          {/* Bouton Fermer */}
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setImageViewerVisible(false)}
+          >
+            <MaterialIcons name="close" size={30} color="#fff" />
+          </TouchableOpacity>
+
+          <FlatList
+            data={screenshotArray}
+            horizontal
+            pagingEnabled
+            initialScrollIndex={selectedImageIndex}
+            getItemLayout={(data, index) => ({
+              length: styles.fullScreenImage.width,
+              offset: styles.fullScreenImage.width * index,
+              index,
+            })}
+            keyExtractor={(_, index) => index.toString()}
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <View style={styles.fullScreenImageContainer}>
+                <ExpoImage
+                  source={{ uri: item }}
+                  style={styles.fullScreenImage}
+                  contentFit="contain"
+                />
+              </View>
+            )}
+          />
+        </View>
       </Modal>
 
     </ScrollView>
@@ -382,4 +437,9 @@ const styles = StyleSheet.create({
   screenshotBox: { marginBottom: 20 },
   screenshotList: { marginTop: 10 },
   screenshotItem: { width: 280, height: 158, borderRadius: 12, marginRight: 12, backgroundColor: '#202020' },
+
+  fullScreenContainer: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
+  fullScreenImageContainer: { width: require('react-native').Dimensions.get('window').width, height: '100%', justifyContent: 'center', alignItems: 'center' },
+  fullScreenImage: { width: require('react-native').Dimensions.get('window').width, height: '100%' },
+  closeButton: { position: 'absolute', top: 50, right: 20, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 5 },
 });
