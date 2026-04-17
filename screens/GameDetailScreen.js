@@ -54,15 +54,33 @@ export default function GameDetailScreen() {
 
   const screenshotArray = React.useMemo(() => {
     if (!game?.screenshots) return [];
-    const rawArray = Array.isArray(game.screenshots)
-      ? game.screenshots
-      : game.screenshots.split(',').map(s => s.trim()).filter(s => s !== "");
 
-    return rawArray.map(url => {
-      if (url.startsWith('http')) return url;
-      const cleanPath = url.startsWith('/') ? url.substring(1) : url;
-      return `https://www.g-played.com/${cleanPath}`;
-    });
+    let rawArray = [];
+
+    if (Array.isArray(game.screenshots)) {
+      rawArray = game.screenshots;
+    } else {
+      // 1. On tente de parser si c'est une chaîne JSON ("[\"url1\", \"url2\"]")
+      try {
+        rawArray = JSON.parse(game.screenshots);
+        if (!Array.isArray(rawArray)) {
+          rawArray = game.screenshots.split(',');
+        }
+      } catch (e) {
+        // 2. Si ce n'est pas du JSON, on sépare manuellement par la virgule
+        rawArray = game.screenshots.split(',');
+      }
+    }
+
+    // 3. On nettoie les éventuels caractères parasites restants (crochets, guillemets) et on construit l'URL finale
+    return rawArray
+      .map(s => s.replace(/[\[\]"]/g, '').trim()) // Nettoyage de sécurité
+      .filter(s => s !== "")
+      .map(url => {
+        if (url.startsWith('http')) return url;
+        const cleanPath = url.startsWith('/') ? url.substring(1) : url;
+        return `https://www.g-played.com/${cleanPath}`;
+      });
   }, [game?.screenshots]);
 
   const API_UPDATE_URL = 'https://www.g-played.com/api/index.php?action=api_update_game';
@@ -270,43 +288,27 @@ export default function GameDetailScreen() {
               </View>
             )}
 
-            {game.screenshots && (
+            {game.screenshots && screenshotArray.length > 0 && (
               <View style={styles.screenshotBox}>
                 <Text style={styles.sectionLabel}>{i18n.t('gamedetail.label_screenshots')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.screenshotList}>
-                  {(() => {
-                    // 1. On transforme la donnée en tableau proprement
-                    const screenshotArray = Array.isArray(game.screenshots)
-                      ? game.screenshots
-                      : game.screenshots.split(',').map(s => s.trim()).filter(s => s !== "");
-
-                    // 2. On affiche chaque image dans un bouton cliquable
-                    return screenshotArray.map((url, index) => {
-                      let finalUrl = url;
-                      if (!url.startsWith('http')) {
-                        const cleanPath = url.startsWith('/') ? url.substring(1) : url;
-                        finalUrl = `https://www.g-played.com/${cleanPath}`;
-                      }
-
-                      return (
-                        <TouchableOpacity
-                          key={index}
-                          onPress={() => {
-                            setSelectedImageIndex(index);
-                            setImageViewerVisible(true);
-                          }}
-                        >
-                          <ExpoImage
-                            source={{ uri: finalUrl }}
-                            style={styles.screenshotItem}
-                            contentFit="cover"
-                            cachePolicy="memory-disk"
-                            transition={200}
-                          />
-                        </TouchableOpacity>
-                      );
-                    });
-                  })()}
+                  {screenshotArray.map((finalUrl, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => {
+                        setSelectedImageIndex(index);
+                        setImageViewerVisible(true);
+                      }}
+                    >
+                      <ExpoImage
+                        source={{ uri: finalUrl }}
+                        style={styles.screenshotItem}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                        transition={200}
+                      />
+                    </TouchableOpacity>
+                  ))}
                 </ScrollView>
               </View>
             )}
