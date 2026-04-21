@@ -99,8 +99,14 @@ export default function SearchScreen() {
 
       let processed = 0;
       for (const game of games) {
-        setSyncStatus(`Importation: ${game.name}`);
-        await fetch(`${API_BASE}?action=api_steam_import_single`, { method: 'POST', headers, body: JSON.stringify(game) });
+        setSyncStatus(`Importation : ${game.name}`);
+        await fetch(`${API_BASE}?action=api_steam_import_single`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            steam_appid: game.appid // L'ID unique Steam
+          })
+        });
         processed++;
         setSyncProgress(Math.round((processed / total) * 100));
       }
