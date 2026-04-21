@@ -122,12 +122,16 @@ export default function ProfileScreen() {
   };
 
   const handleShareProfile = async () => {
+    const username = userData.username; // Récupéré de votre SecureStore ou état
+    const appLink = `gplayed://profile/${username}`;
+    const shareUrl = `https://www.g-played.com/api/index.php?action=app_bounce&target=${encodeURIComponent(appLink)}`;
+
     try {
       await Share.share({
-        message: `Découvrez ma collection de jeux vidéo sur G-Played ! https://www.g-played.com/index.php?action=share&id=${user.id}`,
+        message: `Découvrez ma collection de jeux sur GPlayed ! ${shareUrl}`,
       });
     } catch (error) {
-      console.error(error);
+      console.error("Erreur de partage :", error);
     }
   };
 
