@@ -56,7 +56,7 @@ export default function LoginScreen() {
       if (data.success) {
         await SecureStore.setItemAsync('userToken', data.token);
         if (data.user) await SecureStore.setItemAsync('userData', JSON.stringify(data.user));
-        
+
         router.replace('/home');
         Alert.alert(i18n.t('common.success', { defaultValue: 'Succès' }), i18n.t('login.success_msg', { defaultValue: 'Connexion réussie' }));
       } else {
@@ -90,7 +90,7 @@ export default function LoginScreen() {
       if (data.success) {
         await SecureStore.setItemAsync('userToken', data.token);
         if (data.user) await SecureStore.setItemAsync('userData', JSON.stringify(data.user));
-        
+
         router.replace('/home');
       } else {
         Alert.alert(i18n.t('common.error'), data.message || i18n.t('login.error_invalid'));
@@ -115,9 +115,9 @@ export default function LoginScreen() {
       const response = await fetch(API_FORGOT_PASSWORD, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: forgotEmail, 
-          redirect_url: appRedirectUrl 
+        body: JSON.stringify({
+          email: forgotEmail,
+          redirect_url: appRedirectUrl
         }),
       });
       const data = await response.json();
@@ -137,12 +137,12 @@ export default function LoginScreen() {
   const handleSocialLogin = async (provider) => {
     try {
       const redirectUrl = Linking.createURL('/');
-      
-      // On passe cette URL au backend pour qu'il sache où rediriger après l'authentification web
-      const authUrl = `https://www.g-played.com/index.php?action=login_${provider}&app_redirect=${encodeURIComponent(redirectUrl)}`;
-      
+
+      // On pointe vers /api/index.php avec l'action correspondante
+      const authUrl = `https://www.g-played.com/api/index.php?action=api_login_${provider}&app_redirect=${encodeURIComponent(redirectUrl)}`;
+
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
-      
+
       if (result.type === 'success' && result.url) {
         handleDeepLink(result.url);
       }
@@ -150,7 +150,6 @@ export default function LoginScreen() {
       console.error("Erreur d'authentification sociale:", error);
     }
   };
-
   return (
     <View style={styles.container}>
       <Image source={require('../assets/images/logo.svg')} style={styles.logo} contentFit="contain" />
@@ -178,45 +177,45 @@ export default function LoginScreen() {
           <Text style={{ color: '#6c7d76', textAlign: 'center' }}>{i18n.t('login.forgot_password')}</Text>
         </TouchableOpacity>
 
-        
-      <Modal visible={forgotModalVisible} transparent animationType="fade" onRequestClose={() => setForgotModalVisible(false)}>
-        <View style={styles.lendModalOverlay}>
-          <View style={styles.lendModalContent}>
-            <Text style={[styles.lendModalTitle, { color: '#4CE5AE' }]}>
-              {i18n.t('login.reset_title', { defaultValue: 'Réinitialiser le mot de passe' })}
-            </Text>
-            <Text style={styles.lendModalText}>
-              Saisissez votre email pour recevoir un lien de réinitialisation.
-            </Text>
-            <TextInput
-              style={styles.lendInput}
-              placeholder="Email"
-              placeholderTextColor="#6c7d76"
-              value={forgotEmail}
-              onChangeText={setForgotEmail}
-              autoFocus
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-            <View style={styles.lendModalActions}>
-              <TouchableOpacity style={[styles.lendModalBtn, styles.lendModalBtnCancel]} onPress={() => setForgotModalVisible(false)}>
-                <Text style={styles.lendModalBtnTextCancel}>{i18n.t('common.cancel')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.lendModalBtn, styles.lendModalBtnConfirm, { backgroundColor: '#4CE5AE', borderColor: '#4CE5AE' }]} 
-                onPress={handleForgotPassword} 
-                disabled={isSendingReset}
-              >
-                {isSendingReset ? (
-                  <ActivityIndicator color="#111" />
-                ) : (
-                  <Text style={styles.lendModalBtnTextConfirm}>{i18n.t('common.send', { defaultValue: 'Envoyer' })}</Text>
-                )}
-              </TouchableOpacity>
+
+        <Modal visible={forgotModalVisible} transparent animationType="fade" onRequestClose={() => setForgotModalVisible(false)}>
+          <View style={styles.lendModalOverlay}>
+            <View style={styles.lendModalContent}>
+              <Text style={[styles.lendModalTitle, { color: '#4CE5AE' }]}>
+                {i18n.t('login.reset_title', { defaultValue: 'Réinitialiser le mot de passe' })}
+              </Text>
+              <Text style={styles.lendModalText}>
+                Saisissez votre email pour recevoir un lien de réinitialisation.
+              </Text>
+              <TextInput
+                style={styles.lendInput}
+                placeholder="Email"
+                placeholderTextColor="#6c7d76"
+                value={forgotEmail}
+                onChangeText={setForgotEmail}
+                autoFocus
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+              <View style={styles.lendModalActions}>
+                <TouchableOpacity style={[styles.lendModalBtn, styles.lendModalBtnCancel]} onPress={() => setForgotModalVisible(false)}>
+                  <Text style={styles.lendModalBtnTextCancel}>{i18n.t('common.cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.lendModalBtn, styles.lendModalBtnConfirm, { backgroundColor: '#4CE5AE', borderColor: '#4CE5AE' }]}
+                  onPress={handleForgotPassword}
+                  disabled={isSendingReset}
+                >
+                  {isSendingReset ? (
+                    <ActivityIndicator color="#111" />
+                  ) : (
+                    <Text style={styles.lendModalBtnTextConfirm}>{i18n.t('common.send', { defaultValue: 'Envoyer' })}</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
       </View>
 
       <TouchableOpacity style={styles.button} onPress={handleStandardLogin} disabled={isLoading}>
@@ -242,7 +241,7 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-container: { flex: 1, backgroundColor: '#121212', justifyContent: 'center', padding: 24 },
+  container: { flex: 1, backgroundColor: '#121212', justifyContent: 'center', padding: 24 },
   logo: { width: 280, height: 50, alignSelf: 'center', marginBottom: 15 },
   subtitle: { fontSize: 16, color: '#ccc', textAlign: 'center', marginBottom: 48 },
   inputContainer: { marginBottom: 24 },
@@ -258,7 +257,7 @@ container: { flex: 1, backgroundColor: '#121212', justifyContent: 'center', padd
   googleButtonText: { color: '#000', fontSize: 16, fontWeight: 'bold' },
   discordButton: { backgroundColor: '#5865F2' },
   discordButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  
+
   lendModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   lendModalContent: { backgroundColor: '#1b1b1b', width: '100%', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: '#333' },
   lendModalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
