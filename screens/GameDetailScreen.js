@@ -41,8 +41,6 @@ export default function GameDetailScreen() {
 
   const [format, setFormat] = useState(game?.format || 'physical');
   const [status, setStatus] = useState(game?.status || 'not_started');
-  const [rating, setRating] = useState(game?.user_rating ? game.user_rating.toString() : '');
-  const [metacritic, setMetacritic] = useState(game?.metacritic_score ? game.metacritic_score.toString() : '');
   const [price, setPrice] = useState(game?.estimated_price ? game.estimated_price.toString() : '');
   const [timeMain, setTimeMain] = useState(game?.playtime ? game.playtime.toString() : '');
   const [comment, setComment] = useState(game?.comment || '');
@@ -51,6 +49,9 @@ export default function GameDetailScreen() {
 
   const [isImageViewerVisible, setImageViewerVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
+  const isSteam = !!game.steam_appid;
+  const isIGDB = !!game.rating && !game.steam_appid;
 
   const screenshotArray = React.useMemo(() => {
     if (!game?.screenshots) return [];
@@ -94,26 +95,23 @@ export default function GameDetailScreen() {
     }
 
     setIsSaving(true);
-
-    try {
-      const token = await SecureStore.getItemAsync('userToken');
-      const response = await fetch(API_UPDATE_URL, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: game.id,
-          title,
-          platform: selectedPlatform,
-          status,
-          format,
-          user_rating: rating,
-          metacritic_score: metacritic,
-          genres,
-          estimated_price: price,
-          comment,
-          playtime: timeMain
-        })
-      });
+      try {
+        const token = await SecureStore.getItemAsync('userToken');
+        const response = await fetch(API_UPDATE_URL, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: game.id,
+            title,
+            platform: selectedPlatform,
+            status,
+            format,
+            genres,
+            estimated_price: price,
+            comment,
+            playtime: timeMain
+          })
+        });
       const data = await response.json();
       if (data.success) {
         Alert.alert(i18n.t('common.success'), i18n.t('gamedetail.success_save'));
@@ -237,14 +235,31 @@ export default function GameDetailScreen() {
             </View>
 
             <View style={styles.row}>
-              <View style={styles.col}>
-                <Text style={styles.label}>{i18n.t('gamedetail.label_user_rating')}</Text>
-                <TextInput style={styles.input} keyboardType="numeric" value={rating} onChangeText={setRating} />
-              </View>
-              <View style={styles.col}>
-                <Text style={styles.label}>{i18n.t('gamedetail.label_metacritic')}</Text>
-                <TextInput style={styles.input} keyboardType="numeric" value={metacritic} onChangeText={setMetacritic} />
-              </View>
+              
+              {/* Score Metacritic (Steam) - Uniquement si steam_appid est présent */}
+              {game.steam_appid && game.metacritic_score !== null && (
+                <View style={styles.col}>
+                  <Text style={styles.label}>{i18n.t('gamedetail.label_metacritic')}</Text>
+                  <View style={styles.readOnlyBox}>
+                    <Text style={styles.readOnlyText}>
+                      {!isNaN(Number(game.metacritic_score)) ? Number(game.metacritic_score) : '-'}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Note IGDB - Uniquement si pas de steam_appid et que rating existe */}
+              {!game.steam_appid && game.rating !== null && game.rating !== undefined && (
+                <View style={styles.col}>
+                  <Text style={styles.label}>Note IGDB</Text>
+                  <View style={styles.readOnlyBox}>
+                    <Text style={styles.readOnlyText}>
+                      {!isNaN(Number(game.rating)) ? Math.round(Number(game.rating)) : '-'}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
             </View>
 
             <View style={styles.row}>
@@ -444,4 +459,20 @@ const styles = StyleSheet.create({
   fullScreenImageContainer: { width: require('react-native').Dimensions.get('window').width, height: '100%', justifyContent: 'center', alignItems: 'center' },
   fullScreenImage: { width: require('react-native').Dimensions.get('window').width, height: '100%' },
   closeButton: { position: 'absolute', top: 50, right: 20, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 5 },
+
+readOnlyBox: {
+  backgroundColor: '#252525',
+  borderRadius: 12,
+  padding: 14,
+  borderWidth: 1,
+  borderColor: '#333',
+  justifyContent: 'center',
+  alignItems: 'center',
+  height: 50,
+},
+readOnlyText: {
+  color: '#4CE5AE',
+  fontSize: 16,
+  fontWeight: 'bold',
+},
 });

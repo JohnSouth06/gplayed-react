@@ -35,6 +35,23 @@ export default function PublicProfileScreen() {
     }
   };
 
+    const formatMemberSince = (dateString) => {
+        if (!dateString) return 'N/A';
+
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return 'N/A';
+
+        const isFr = i18n.locale && i18n.locale.includes('fr');
+
+        if (isFr) {
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${month}/${year}`; // Résultat : 01/2026
+        }
+
+        return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(date); // Résultat : April 2026
+    };
+
   const getStatusConfig = (status) => {
     const config = {
       'not_started': { label: i18n.t('status.not_started'), icon: 'inbox', color: '#ccc' },
@@ -115,6 +132,13 @@ export default function PublicProfileScreen() {
           style={styles.avatar}
         />
         <Text style={styles.username}>{data?.owner.username}</Text>
+        {(data?.user?.created_at || data?.owner?.created_at) ? (
+            <Text style={styles.memberSince}>
+              {i18n.locale.includes('fr') 
+                ? `Membre depuis le ${formatMemberSince(data?.user?.created_at || data?.owner?.created_at)}` 
+                : `Member since ${formatMemberSince(data?.user?.created_at || data?.owner?.created_at)}`}
+            </Text>
+          ) : null}
 
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
@@ -201,7 +225,8 @@ const styles = StyleSheet.create({
   
   userInfoContainer: { alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#333', marginBottom: 16 },
   avatar: { width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: '#4CE5AE', marginBottom: 10 },
-  username: { color: '#fff', fontSize: 22, fontWeight: 'bold', marginBottom: 16 },
+  username: { color: '#fff', fontSize: 22, fontWeight: 'bold', marginBottom: 8 },
+  memberSince: { fontSize: 13, color: '#6c7d76', marginBottom: 16 },
   statsRow: { flexDirection: 'row', backgroundColor: '#202020', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 24, borderWidth: 1, borderColor: '#333' },
   statBox: { alignItems: 'center', minWidth: 80 },
   statValue: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
